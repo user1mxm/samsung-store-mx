@@ -273,6 +273,26 @@ export default function Home() {
   const { data: categories } = trpc.product.categories.useQuery()
   const { data: reviews } = trpc.review.list.useQuery()
 
+  /* tRPC mutations */
+  const createOrderMutation = trpc.order.create.useMutation()
+  const generateCommissionsMutation = trpc.referral.generateCommissions.useMutation()
+  const cartAddMutation = trpc.cart.add.useMutation()
+  const cartRemoveMutation = trpc.cart.remove.useMutation()
+  const cartUpdateQtyMutation = trpc.cart.updateQty.useMutation()
+  const cartClearMutation = trpc.cart.clear.useMutation()
+
+  /* Load DB cart on login */
+  const { data: dbCart } = trpc.cart.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+  useEffect(() => {
+    if (dbCart && dbCart.length > 0) {
+      setCart(dbCart.map((item: any) => ({ product: item.product, quantity: item.quantity })))
+    }
+  }, [dbCart])
+
   /* State */
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -345,18 +365,21 @@ export default function Home() {
       }
       return [...prev, { product, quantity: 1 }]
     })
+    if (isAuthenticated) cartAddMutation.mutate({ productId: product.id, quantity: 1 })
     confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 }, colors: ['#1428A0', '#0077C8', '#00BFFF'] })
     toast.success(`${product.name} agregado`, { icon: <ShoppingCart className="w-4 h-4" /> })
-  }, [])
+  }, [isAuthenticated])
 
   const removeFromCart = useCallback((productId: number) => {
     setCart(prev => prev.filter(i => i.product.id !== productId))
-  }, [])
+    if (isAuthenticated) cartRemoveMutation.mutate({ productId })
+  }, [isAuthenticated])
 
   const updateQty = useCallback((productId: number, qty: number) => {
     if (qty <= 0) { removeFromCart(productId); return }
     setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i))
-  }, [removeFromCart])
+    if (isAuthenticated) cartUpdateQtyMutation.mutate({ productId, quantity: qty })
+  }, [removeFromCart, isAuthenticated])
 
   /* Wishlist */
   const toggleWishlist = useCallback((productId: number) => {
@@ -473,10 +496,16 @@ export default function Home() {
                   Acceso
                 </Button>
               ) : (
-                <button onClick={() => navigate(user?.role === 'admin' ? '/admin' : user?.role === 'agent' ? '/agent' : '/mi-red')}
-                  className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white text-xs font-bold ml-1">
-                  {(user?.name || 'U')[0]}
-                </button>
+                <div className="flex items-center gap-1 ml-1">
+                  <button onClick={() => navigate('/mis-pedidos')}
+                    className={`hidden sm:flex items-center h-8 px-3 rounded-full text-[10px] font-semibold transition-colors ${darkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-[#1428A0] hover:bg-gray-100'}`}>
+                    Pedidos
+                  </button>
+                  <button onClick={() => navigate(user?.role === 'admin' ? '/admin' : user?.role === 'agent' ? '/agent' : '/mi-red')}
+                    className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white text-xs font-bold">
+                    {(user?.name || 'U')[0]}
+                  </button>
+                </div>
               )}
               <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-gray-100 dark:hover:bg-white/10">
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -502,10 +531,23 @@ export default function Home() {
                   className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
                   Carrito ({cartCount})
                 </button>
-                <button onClick={() => { navigate('/login'); setMobileMenuOpen(false) }}
-                  className="block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg text-[#1428A0] font-bold">
-                  Iniciar Sesion
-                </button>
+                {isAuthenticated ? (
+                  <>
+                    <button onClick={() => { navigate('/mis-pedidos'); setMobileMenuOpen(false) }}
+                      className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      Mis Pedidos
+                    </button>
+                    <button onClick={() => { navigate('/mi-red'); setMobileMenuOpen(false) }}
+                      className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      Mi Red
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => { navigate('/login'); setMobileMenuOpen(false) }}
+                    className="block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg text-[#1428A0] font-bold">
+                    Iniciar Sesion
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
@@ -1140,7 +1182,25 @@ export default function Home() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1 h-11 rounded-full" onClick={() => setCheckoutStep(2)}>Atras</Button>
-                  <Button className="flex-1 h-11 samsung-btn-primary" onClick={() => setCheckoutStep(4)}>Pagar ${cartTotal.toLocaleString()}</Button>
+                  <Button className="flex-1 h-11 samsung-btn-primary" disabled={createOrderMutation.isPending}
+                    onClick={async () => {
+                      if (!isAuthenticated) { toast.error('Inicia sesion para comprar'); return }
+                      try {
+                        const result = await createOrderMutation.mutateAsync({
+                          total: cartTotal,
+                          items: cart.map(i => ({ productId: i.product.id, quantity: i.quantity, price: Number(i.product.price) })),
+                        })
+                        if (result.orderId && user?.id) {
+                          generateCommissionsMutation.mutate({ orderId: result.orderId, buyerId: user.id, total: cartTotal })
+                        }
+                        if (isAuthenticated) cartClearMutation.mutate()
+                        setCheckoutStep(4)
+                      } catch (e: any) {
+                        toast.error(e.message || 'Error al procesar el pago')
+                      }
+                    }}>
+                    {createOrderMutation.isPending ? 'Procesando...' : `Pagar $${cartTotal.toLocaleString()}`}
+                  </Button>
                 </div>
               </div>
             )}
@@ -1170,7 +1230,7 @@ export default function Home() {
                     <span className="text-[#1428A0]">${cartTotal.toLocaleString()} MXN</span>
                   </div>
                 </div>
-                <Button className="w-full h-11 samsung-btn-primary" onClick={() => { setCart([]); setCheckoutOpen(false); setCheckoutStep(1); confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } }) }}>
+                <Button className="w-full h-11 samsung-btn-primary" onClick={() => { setCart([]); localStorage.removeItem('cart'); setCheckoutOpen(false); setCheckoutStep(1); confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } }) }}>
                   Finalizar
                 </Button>
               </div>
