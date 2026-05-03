@@ -365,20 +365,40 @@ export default function Home() {
       }
       return [...prev, { product, quantity: 1 }]
     })
-    if (isAuthenticated) cartAddMutation.mutate({ productId: product.id, quantity: 1 })
+    if (isAuthenticated) {
+      cartAddMutation.mutate({ productId: product.id, quantity: 1 }, {
+        onError: () => {
+          // Revert local state on DB failure
+          setCart(prev => {
+            const item = prev.find(i => i.product.id === product.id)
+            if (!item) return prev
+            if (item.quantity > 1) return prev.map(i => i.product.id === product.id ? { ...i, quantity: i.quantity - 1 } : i)
+            return prev.filter(i => i.product.id !== product.id)
+          })
+        },
+      })
+    }
     confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 }, colors: ['#1428A0', '#0077C8', '#00BFFF'] })
     toast.success(`${product.name} agregado`, { icon: <ShoppingCart className="w-4 h-4" /> })
   }, [isAuthenticated])
 
   const removeFromCart = useCallback((productId: number) => {
     setCart(prev => prev.filter(i => i.product.id !== productId))
-    if (isAuthenticated) cartRemoveMutation.mutate({ productId })
+    if (isAuthenticated) {
+      cartRemoveMutation.mutate({ productId }, {
+        onError: () => toast.error('Error al sincronizar el carrito'),
+      })
+    }
   }, [isAuthenticated])
 
   const updateQty = useCallback((productId: number, qty: number) => {
     if (qty <= 0) { removeFromCart(productId); return }
     setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i))
-    if (isAuthenticated) cartUpdateQtyMutation.mutate({ productId, quantity: qty })
+    if (isAuthenticated) {
+      cartUpdateQtyMutation.mutate({ productId, quantity: qty }, {
+        onError: () => toast.error('Error al sincronizar el carrito'),
+      })
+    }
   }, [removeFromCart, isAuthenticated])
 
   /* Wishlist */
@@ -1193,7 +1213,7 @@ export default function Home() {
                         if (result.orderId && user?.id) {
                           generateCommissionsMutation.mutate({ orderId: result.orderId, buyerId: user.id, total: cartTotal })
                         }
-                        if (isAuthenticated) cartClearMutation.mutate()
+                        if (isAuthenticated) await cartClearMutation.mutateAsync()
                         setCheckoutStep(4)
                       } catch (e: any) {
                         toast.error(e.message || 'Error al procesar el pago')
