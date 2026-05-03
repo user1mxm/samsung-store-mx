@@ -177,4 +177,26 @@ export const referralRouter = createRouter({
 
       return { success: true, commissionsCreated };
     }),
+
+  // Admin: get full network tree
+  getNetworkTree: adminQuery.query(async () => {
+    const db = getDb();
+    const rows = await db
+      .select({
+        userId: referrals.userId,
+        referrerId: referrals.referrerId,
+        referralCode: referrals.referralCode,
+        level: referrals.level,
+        totalEarnings: referrals.totalEarnings,
+        totalNetworkSales: referrals.totalNetworkSales,
+        networkSize: referrals.networkSize,
+        createdAt: referrals.createdAt,
+        name: users.name,
+        email: users.email,
+      })
+      .from(referrals)
+      .innerJoin(users, eq(referrals.userId, users.id))
+      .orderBy(desc(referrals.totalNetworkSales));
+    return rows;
+  }),
 });

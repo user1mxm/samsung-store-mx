@@ -5,6 +5,8 @@ import { orderRouter } from "./order-router";
 import { agentRouter } from "./agent-router";
 import { reviewRouter } from "./review-router";
 import { referralRouter } from "./referral-router";
+import { cartRouter } from "./cart-router";
+import { withdrawalRouter } from "./withdrawal-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -16,6 +18,8 @@ export const appRouter = createRouter({
   agent: agentRouter,
   review: reviewRouter,
   referral: referralRouter,
+  cart: cartRouter,
+  withdrawal: withdrawalRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -62,6 +62,7 @@ export type InsertProduct = typeof products.$inferInsert;
 export const orders = mysqlTable("orders", {
   id: serial("id").primaryKey(),
   userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+  agentId: bigint("agentId", { mode: "number", unsigned: true }),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   status: mysqlEnum("status", ["pending", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
   shippingAddress: text("shippingAddress"),
