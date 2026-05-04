@@ -193,7 +193,7 @@ export const localAuthRouter = createRouter({
       const user = rows[0];
 
       // Always return success to avoid email enumeration
-      if (!user) return { success: true };
+      if (!user || !user.email) return { success: true };
 
       const resetToken = nanoid(32);
       const expiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
@@ -205,7 +205,7 @@ export const localAuthRouter = createRouter({
       const baseUrl = `${proto}://${host}`;
 
       try {
-        await sendPasswordResetEmail(user.email!, user.name, resetToken, baseUrl);
+        await sendPasswordResetEmail(user.email, user.name, resetToken, baseUrl);
       } catch (emailErr) {
         console.error("[forgotPassword] Failed to send reset email:", emailErr);
       }
