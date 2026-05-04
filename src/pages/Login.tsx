@@ -24,7 +24,7 @@ function getOAuthUrl() {
   return url.toString();
 }
 
-type TabType = "cliente" | "embajador" | "agente";
+type TabType = "cliente" | "embajador" | "agente" | "admin";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -69,7 +69,8 @@ export default function Login() {
   const tabs = [
     { id: "cliente" as TabType, label: "Cliente", icon: User, desc: "Compra los mejores TVs Samsung" },
     { id: "embajador" as TabType, label: "Embajador", icon: Gift, desc: "Gana comisiones compartiendo tu codigo" },
-    { id: "agente" as TabType, label: "Agente de Ventas", icon: Briefcase, desc: "Acceso para comisionistas autorizados" },
+    { id: "agente" as TabType, label: "Agente", icon: Briefcase, desc: "Acceso para comisionistas autorizados" },
+    { id: "admin" as TabType, label: "Admin", icon: ShieldCheck, desc: "Panel administrativo · Acceso restringido" },
   ];
 
   return (
@@ -102,12 +103,16 @@ export default function Login() {
           </CardHeader>
 
           <CardContent className="space-y-4">
-            {/* 3 Tab Selector */}
-            <div className="flex gap-1 p-1 bg-gray-100 dark:bg-[#1a1a2a] rounded-xl">
+            {/* 4 Tab Selector */}
+            <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 dark:bg-[#1a1a2a] rounded-xl">
               {tabs.map((t) => (
                 <button key={t.id} onClick={() => { setTab(t.id); setIsRegister(false); }}
-                  className={`flex-1 py-2.5 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 ${
-                    tab === t.id ? "bg-[#1428A0] text-white shadow-md" : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
+                  className={`py-2 rounded-lg text-[9px] font-bold transition-all flex flex-col items-center gap-0.5 ${
+                    tab === t.id
+                      ? t.id === "admin"
+                        ? "bg-red-600 text-white shadow-md"
+                        : "bg-[#1428A0] text-white shadow-md"
+                      : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                   }`}>
                   <t.icon className="w-3.5 h-3.5" />
                   {t.label}
@@ -124,14 +129,22 @@ export default function Login() {
               </motion.p>
             </AnimatePresence>
 
-            {/* Login/Register Toggle */}
-            <div className="flex gap-1">
-              <button onClick={() => setIsRegister(false)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${!isRegister ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'text-gray-400'}`}>Iniciar Sesion</button>
-              <button onClick={() => setIsRegister(true)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${isRegister ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'text-gray-400'}`}>Crear Cuenta</button>
-            </div>
+            {/* Login/Register Toggle – hidden for admin */}
+            {tab !== "admin" && (
+              <div className="flex gap-1">
+                <button onClick={() => setIsRegister(false)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${!isRegister ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'text-gray-400'}`}>Iniciar Sesion</button>
+                <button onClick={() => setIsRegister(true)} className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all ${isRegister ? 'bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-white' : 'text-gray-400'}`}>Crear Cuenta</button>
+              </div>
+            )}
+            {tab === "admin" && (
+              <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
+                <ShieldCheck className="w-4 h-4 text-red-500 shrink-0" />
+                <p className="text-[10px] text-red-600 dark:text-red-400 font-medium">Acceso exclusivo para administradores del sistema. Las cuentas admin son creadas internamente.</p>
+              </div>
+            )}
 
             <AnimatePresence mode="wait">
-              {!isRegister ? (
+              {(!isRegister || tab === "admin") ? (
                 <motion.form key="login" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} onSubmit={handleLogin} className="space-y-3">
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
@@ -144,13 +157,19 @@ export default function Login() {
                       {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  <Button type="submit" className="w-full h-11 samsung-btn-primary rounded-xl font-bold" disabled={loginMutation.isPending}>
+                  <Button type="submit"
+                    className={`w-full h-11 rounded-xl font-bold ${tab === "admin" ? "bg-red-600 hover:bg-red-700 text-white" : "samsung-btn-primary"}`}
+                    disabled={loginMutation.isPending}>
                     {loginMutation.isPending ? "Entrando..." : `Iniciar como ${tabs.find(t => t.id === tab)?.label}`}
                   </Button>
-                  <Separator className="my-2" />
-                  <Button type="button" variant="outline" className="w-full h-11 rounded-xl border-gray-200 dark:border-gray-700" onClick={() => (window.location.href = getOAuthUrl())}>
-                    <Globe className="mr-2 h-4 w-4 text-[#1428A0]" /> Continuar con OAuth
-                  </Button>
+                  {tab !== "admin" && (
+                    <>
+                      <Separator className="my-2" />
+                      <Button type="button" variant="outline" className="w-full h-11 rounded-xl border-gray-200 dark:border-gray-700" onClick={() => (window.location.href = getOAuthUrl())}>
+                        <Globe className="mr-2 h-4 w-4 text-[#1428A0]" /> Continuar con OAuth
+                      </Button>
+                    </>
+                  )}
                 </motion.form>
               ) : (
                 <motion.form key="register" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} onSubmit={handleRegister} className="space-y-3">
