@@ -479,22 +479,44 @@ export default function Home() {
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-[56px]">
             {/* Logo */}
-            <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-2.5 shrink-0">
-              <img src="/logo-samsung-mx.png" alt="Samsung Store MX" className="w-8 h-8 object-contain" />
+            <motion.button
+              onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              className="flex items-center gap-2.5 shrink-0 group"
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+            >
+              <motion.div
+                className="relative"
+                whileHover={{ rotate: [0, -6, 6, 0] }}
+                transition={{ duration: 0.5 }}
+              >
+                <img src="/logo-samsung-mx.png" alt="Samsung Store MX" className="w-8 h-8 object-contain relative z-10" />
+                <motion.div
+                  className="absolute inset-0 rounded-lg blur-md opacity-0 group-hover:opacity-60 transition-opacity duration-300 bg-[#1428A0]"
+                />
+              </motion.div>
               <div className="hidden sm:block">
-                <span className={`text-[12px] font-black tracking-[0.12em] leading-none ${darkMode ? 'text-white' : 'text-[#1428A0]'}`}>SAMSUNG</span>
+                <span className={`text-[12px] font-black tracking-[0.12em] leading-none logo-shimmer`}>SAMSUNG</span>
                 <span className={`text-[8px] font-bold tracking-[0.2em] block leading-none mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>STORE MX</span>
               </div>
-            </button>
+            </motion.button>
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-6">
-              {NAV_LINKS.map(link => (
-                <button key={link.label} onClick={() => scrollTo(link.href)}
+              {NAV_LINKS.map((link, i) => (
+                <motion.button
+                  key={link.label}
+                  onClick={() => scrollTo(link.href)}
+                  initial={{ opacity: 0, y: -8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: 0.1 + i * 0.07, ease: 'easeOut' }}
                   className={`text-[11px] font-semibold transition-colors relative group ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#1428A0]'}`}>
                   {link.label}
                   <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-[#1428A0] transition-all duration-300 group-hover:w-full" />
-                </button>
+                </motion.button>
               ))}
             </div>
 
@@ -577,30 +599,79 @@ export default function Home() {
       {/* ═══ HERO: VR 360° ═══ */}
       <motion.section style={{ opacity: heroOpacity, y: heroY }} className="relative overflow-hidden">
         <div className={`${darkMode ? 'bg-gradient-to-b from-[#0a0a14] via-[#0a0a0f] to-[#0a0a0f]' : 'bg-gradient-to-b from-[#f4f6ff] via-white to-white'}`}>
-          <div className="absolute top-20 right-[10%] w-[500px] h-[500px] bg-[#1428A0]/6 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-0 left-[5%] w-[300px] h-[300px] bg-[#00BFFF]/5 rounded-full blur-[80px] pointer-events-none" />
+          {/* Aurora orbs */}
+          <motion.div
+            className="absolute top-8 right-[8%] w-[550px] h-[550px] rounded-full pointer-events-none aurora-orb"
+            style={{ background: 'radial-gradient(circle, #1428A018 0%, transparent 70%)' }}
+          />
+          <motion.div
+            className="absolute -bottom-20 left-[3%] w-[380px] h-[380px] rounded-full pointer-events-none aurora-orb-2"
+            style={{ background: 'radial-gradient(circle, #00BFFF12 0%, transparent 70%)' }}
+          />
+          <motion.div
+            className="absolute top-[30%] left-[40%] w-[220px] h-[220px] rounded-full pointer-events-none aurora-orb-3"
+            style={{ background: 'radial-gradient(circle, #0077C80c 0%, transparent 70%)' }}
+          />
 
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-10 sm:pb-16">
             {/* Hero Text */}
             <div className="text-center mb-8 sm:mb-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1428A0]/10 to-[#0077C8]/10 rounded-full mb-4 border border-[#1428A0]/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1428A0] animate-pulse" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1428A0]">Samsung 2024 · FloatLayer Design</span>
-                </div>
-                <h1 className={`text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] mb-3 max-w-3xl mx-auto ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {/* Animated badge */}
+                <motion.div
+                  className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1428A0]/10 to-[#0077C8]/10 rounded-full mb-5 border border-[#1428A0]/20"
+                  animate={{ boxShadow: ['0 0 0px #1428A000', '0 0 16px #1428A035', '0 0 0px #1428A000'] }}
+                  transition={{ duration: 2.5, repeat: Infinity }}
+                >
+                  <motion.span
+                    className="w-1.5 h-1.5 rounded-full bg-[#1428A0]"
+                    animate={{ scale: [1, 1.6, 1], opacity: [1, 0.5, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1428A0]">Samsung 2026 · FloatLayer Design</span>
+                  <Zap className="w-3 h-3 text-[#0077C8]" />
+                </motion.div>
+
+                <motion.h1
+                  className={`text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] mb-3 max-w-3xl mx-auto ${darkMode ? 'text-white' : 'text-gray-900'}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.15 }}
+                >
                   <TypewriterText texts={['S95H OLED · El Futuro Visual', 'Neo QLED 8K · Realidad Total', 'Odyssey G9 · Gaming Definitivo']} speed={55} delay={2800} />
-                </h1>
-                <p className={`text-sm max-w-lg mx-auto mb-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                </motion.h1>
+
+                <motion.p
+                  className={`text-sm max-w-lg mx-auto mb-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
                   Rotacion 360° interactiva. Arrastra para explorar cada angulo del TV mas avanzado de Samsung.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-5 mb-2">
-                  {[{ icon: Shield, label: '5 Anos Garantia' }, { icon: Clock, label: '24h Express' }, { icon: Award, label: 'CES 2024' }].map(b => (
-                    <div key={b.label} className="flex items-center gap-1.5 text-gray-400">
+                </motion.p>
+
+                <motion.div
+                  className="flex flex-wrap items-center justify-center gap-5 mb-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.4 }}
+                >
+                  {[{ icon: Shield, label: '5 Anos Garantia' }, { icon: Clock, label: '24h Express' }, { icon: Award, label: 'CES 2024' }].map((b, i) => (
+                    <motion.div
+                      key={b.label}
+                      className="flex items-center gap-1.5 text-gray-400"
+                      initial={{ opacity: 0, scale: 0.85 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.45 + i * 0.08 }}
+                    >
                       <b.icon className="w-3.5 h-3.5 text-[#1428A0]" /><span className="text-[10px] font-medium">{b.label}</span>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               </motion.div>
             </div>
 
@@ -613,14 +684,18 @@ export default function Home() {
             </motion.div>
 
             {/* CTAs */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }}
               className="flex flex-wrap items-center justify-center gap-3 mt-8">
-              <Button className="h-11 px-7 samsung-btn-primary text-xs" onClick={() => scrollTo('#catalogo')}>
-                Ver Catalogo <ArrowRight className="ml-2 w-3.5 h-3.5" />
-              </Button>
-              <Button variant="outline" className={`h-11 px-5 rounded-full text-xs ${darkMode ? 'border-gray-700 text-gray-300' : 'samsung-btn-outline'}`} onClick={() => scrollTo('#tecnologia')}>
-                Innovacion Samsung
-              </Button>
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                <Button className="h-11 px-7 samsung-btn-primary text-xs shadow-lg shadow-blue-900/25" onClick={() => scrollTo('#catalogo')}>
+                  Ver Catalogo <ArrowRight className="ml-2 w-3.5 h-3.5" />
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                <Button variant="outline" className={`h-11 px-5 rounded-full text-xs ${darkMode ? 'border-gray-700 text-gray-300' : 'samsung-btn-outline'}`} onClick={() => scrollTo('#tecnologia')}>
+                  Innovacion Samsung
+                </Button>
+              </motion.div>
             </motion.div>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
               className="flex flex-wrap items-center justify-center gap-3 mt-4">
@@ -635,11 +710,17 @@ export default function Home() {
       <section id="catalogo" className={`py-10 sm:py-16 ${darkMode ? 'bg-[#0a0a0f]' : 'bg-[#fafbfc]'}`}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="text-center mb-8">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1428A0] mb-2">Lineup 2024</p>
+          <motion.div
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: 24 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1428A0] mb-2">Lineup 2026</p>
             <h2 className={`text-2xl sm:text-4xl font-black mb-2 tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>Catalogo Samsung</h2>
             <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Descubre la nueva generacion de displays con IA integrada</p>
-          </div>
+          </motion.div>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6" ref={searchRef}>
@@ -748,7 +829,15 @@ export default function Home() {
               { label: 'Satisfaccion', value: 99, suffix: '%' },
               { label: 'Soporte', value: 24, suffix: '/7' },
             ].map((s, i) => (
-              <motion.div key={s.label} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}>
+              <motion.div
+                key={s.label}
+                initial={{ opacity: 0, y: 24, scale: 0.92 }}
+                whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                whileHover={{ scale: 1.04 }}
+                transition={{ delay: i * 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                viewport={{ once: true }}
+                className={`p-4 rounded-2xl ${darkMode ? 'bg-[#0f0f1a]' : 'bg-white'} shadow-sm`}
+              >
                 <p className="text-3xl sm:text-4xl font-black text-[#1428A0] glow-text"><AnimatedCounter value={s.value} suffix={s.suffix} /></p>
                 <p className={`text-[11px] mt-1 font-medium ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{s.label}</p>
               </motion.div>
@@ -760,11 +849,17 @@ export default function Home() {
       {/* ═══ TESTIMONIALS ═══ */}
       <section id="resenas" className={`py-12 sm:py-20 ${darkMode ? 'bg-[#0f0f1a]' : 'bg-white'}`}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-10">
+          <motion.div
+            className="text-center mb-10"
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+          >
             <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1428A0] mb-2">Experiencias Reales</p>
             <h2 className={`text-2xl sm:text-4xl font-black mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Lo Que Dicen Nuestros Clientes</h2>
             <p className="text-sm text-gray-500 max-w-lg mx-auto">Miles de mexicanos ya disfrutan de la mejor tecnologia Samsung.</p>
-          </div>
+          </motion.div>
           <TestimonialCarousel />
         </div>
       </section>

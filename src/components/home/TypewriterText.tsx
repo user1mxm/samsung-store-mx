@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
 
 export function TypewriterText({ texts, speed = 80, delay = 2000 }: { texts: string[]; speed?: number; delay?: number }) {
   const [displayText, setDisplayText] = useState('')
@@ -37,8 +38,13 @@ export function TypewriterText({ texts, speed = 80, delay = 2000 }: { texts: str
 
   return (
     <span className="inline-block">
-      {displayText}
-      <span className="inline-block w-[2px] h-[1em] bg-[#1428A0] ml-1 animate-pulse align-middle" />
+      <span className="text-shimmer">{displayText}</span>
+      <motion.span
+        className="inline-block w-[3px] rounded-full bg-gradient-to-b from-[#1428A0] to-[#00BFFF] ml-1 align-middle"
+        style={{ height: '0.85em' }}
+        animate={{ opacity: [1, 0, 1] }}
+        transition={{ duration: 0.9, repeat: Infinity, ease: 'easeInOut' }}
+      />
     </span>
   )
 }

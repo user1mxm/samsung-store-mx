@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, ShoppingCart, Eye } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ShoppingCart, Eye, Sparkles } from 'lucide-react'
 
 const slides = [
   {
@@ -69,26 +69,39 @@ export function HeroBanner({ darkMode, onScrollToProducts }: HeroBannerProps) {
 
   const slide = slides[current]
 
-  const variants = {
-    enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
-    center: { x: 0, opacity: 1 },
-    exit: (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
+  const textVariants = {
+    enter: (dir: number) => ({ x: dir > 0 ? 40 : -40, opacity: 0, filter: 'blur(4px)' }),
+    center: { x: 0, opacity: 1, filter: 'blur(0px)' },
+    exit: (dir: number) => ({ x: dir > 0 ? -40 : 40, opacity: 0, filter: 'blur(4px)' }),
+  }
+
+  const imageVariants = {
+    enter: (dir: number) => ({ x: dir > 0 ? 80 : -80, opacity: 0, scale: 0.96 }),
+    center: { x: 0, opacity: 1, scale: 1 },
+    exit: (dir: number) => ({ x: dir > 0 ? -80 : 80, opacity: 0, scale: 0.96 }),
   }
 
   return (
     <section className={`relative overflow-hidden ${darkMode ? 'bg-[#0a0a14]' : 'bg-[#f8f9ff]'}`}>
-      {/* Background gradient */}
-      <div className="absolute inset-0 pointer-events-none">
+      {/* Animated aurora background */}
+      <AnimatePresence>
         <motion.div
           key={`bg-${current}`}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 0.15 }}
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1 }}
-          className="absolute inset-0"
+          transition={{ duration: 1.2 }}
+          className="absolute inset-0 pointer-events-none"
           style={{ background: `radial-gradient(ellipse at 70% 50%, ${slide.accent} 0%, transparent 60%)` }}
         />
-      </div>
+      </AnimatePresence>
+      {/* Secondary ambient glow */}
+      <motion.div
+        className="absolute inset-0 pointer-events-none"
+        animate={{ opacity: [0.04, 0.08, 0.04] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+        style={{ background: `radial-gradient(ellipse at 20% 80%, ${slide.accent} 0%, transparent 50%)` }}
+      />
 
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center min-h-[400px] sm:min-h-[450px]">
@@ -98,17 +111,22 @@ export function HeroBanner({ darkMode, onScrollToProducts }: HeroBannerProps) {
               <motion.div
                 key={current}
                 custom={direction}
-                variants={variants}
+                variants={textVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ duration: 0.4, ease: 'easeOut' }}
+                transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               >
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
-                  style={{ backgroundColor: `${slide.accent}15` }}>
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: slide.accent }} />
+                {/* Badge */}
+                <motion.div
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
+                  style={{ backgroundColor: `${slide.accent}18`, border: `1px solid ${slide.accent}30` }}
+                  animate={{ boxShadow: [`0 0 0px ${slide.accent}00`, `0 0 12px ${slide.accent}40`, `0 0 0px ${slide.accent}00`] }}
+                  transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+                >
+                  <Sparkles className="w-3 h-3" style={{ color: slide.accent }} />
                   <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: slide.accent }}>{slide.badge}</span>
-                </div>
+                </motion.div>
 
                 <h2 className={`text-3xl sm:text-4xl lg:text-[52px] font-black leading-[1.1] mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                   {slide.name}
@@ -119,14 +137,18 @@ export function HeroBanner({ darkMode, onScrollToProducts }: HeroBannerProps) {
                 </p>
 
                 <div className="flex flex-wrap items-center gap-4 mb-6">
-                  <p className="text-2xl font-black text-[#1428A0]">{slide.price} <span className="text-xs font-normal text-gray-400">MXN</span></p>
+                  <p className="text-2xl font-black" style={{ color: slide.accent }}>{slide.price} <span className="text-xs font-normal text-gray-400">MXN</span></p>
                   <div className="flex gap-2">
-                    <Button className="h-11 px-5 samsung-btn-primary text-xs" onClick={onScrollToProducts}>
-                      <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Comprar
-                    </Button>
-                    <Button variant="outline" className={`h-11 px-5 rounded-full text-xs ${darkMode ? 'border-gray-700 text-gray-300' : 'samsung-btn-outline'}`} onClick={onScrollToProducts}>
-                      <Eye className="w-3.5 h-3.5 mr-1.5" /> Ver
-                    </Button>
+                    <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                      <Button className="h-11 px-5 samsung-btn-primary text-xs" onClick={onScrollToProducts}>
+                        <ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Comprar
+                      </Button>
+                    </motion.div>
+                    <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.96 }}>
+                      <Button variant="outline" className={`h-11 px-5 rounded-full text-xs ${darkMode ? 'border-gray-700 text-gray-300' : 'samsung-btn-outline'}`} onClick={onScrollToProducts}>
+                        <Eye className="w-3.5 h-3.5 mr-1.5" /> Ver
+                      </Button>
+                    </motion.div>
                   </div>
                 </div>
               </motion.div>
@@ -134,21 +156,26 @@ export function HeroBanner({ darkMode, onScrollToProducts }: HeroBannerProps) {
 
             {/* Slide indicators */}
             <div className="flex items-center gap-3 mt-4">
-              <button onClick={prev} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${darkMode ? 'border-gray-700 hover:bg-white/5' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={prev}
+                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${darkMode ? 'border-gray-700 hover:bg-white/5' : 'border-gray-200 hover:bg-gray-50'}`}>
                 <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
+              </motion.button>
               <div className="flex gap-1.5">
-                {slides.map((_, i) => (
-                  <button
+                {slides.map((s, i) => (
+                  <motion.button
                     key={i}
                     onClick={() => { setDirection(i > current ? 1 : -1); setCurrent(i) }}
-                    className={`h-1.5 rounded-full transition-all duration-500 ${i === current ? 'w-8' : 'w-1.5'} ${i === current ? 'bg-[#1428A0]' : darkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
+                    animate={{ width: i === current ? 28 : 6 }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                    className={`h-1.5 rounded-full transition-colors duration-300 ${i === current ? '' : darkMode ? 'bg-gray-700' : 'bg-gray-300'}`}
+                    style={i === current ? { backgroundColor: slide.accent } : undefined}
                   />
                 ))}
               </div>
-              <button onClick={next} className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${darkMode ? 'border-gray-700 hover:bg-white/5' : 'border-gray-200 hover:bg-gray-50'}`}>
+              <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={next}
+                className={`w-8 h-8 rounded-full border flex items-center justify-center transition-colors ${darkMode ? 'border-gray-700 hover:bg-white/5' : 'border-gray-200 hover:bg-gray-50'}`}>
                 <ChevronRight className="w-3.5 h-3.5" />
-              </button>
+              </motion.button>
               <span className={`text-[10px] font-mono ml-1 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>{current + 1}/{slides.length}</span>
             </div>
           </div>
@@ -159,32 +186,57 @@ export function HeroBanner({ darkMode, onScrollToProducts }: HeroBannerProps) {
               <motion.div
                 key={current}
                 custom={direction}
-                variants={variants}
+                variants={imageVariants}
                 initial="enter"
                 animate="center"
                 exit="exit"
-                transition={{ duration: 0.4, ease: 'easeOut' }}
+                transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
                 className="relative w-full max-w-lg"
               >
                 <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                  animate={{ y: [0, -8, 0] }}
+                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
                 >
                   <div className="relative aspect-[16/10] rounded-2xl overflow-hidden shadow-2xl"
-                    style={{ boxShadow: `0 25px 60px -15px ${slide.accent}40, 0 0 0 1px ${slide.accent}20` }}>
+                    style={{ boxShadow: `0 25px 60px -15px ${slide.accent}50, 0 0 0 1px ${slide.accent}25` }}>
                     <img src={slide.image} alt={slide.name} className="w-full h-full object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-tr from-black/30 via-transparent to-white/10" />
-                    <div className="absolute bottom-0 left-0 right-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+                    {/* Sheen sweep on slide change */}
+                    <motion.div
+                      key={`sheen-${current}`}
+                      className="absolute inset-0 pointer-events-none"
+                      initial={{ x: '-100%', opacity: 0.5 }}
+                      animate={{ x: '200%', opacity: 0 }}
+                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                      style={{ background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.18) 50%, transparent 60%)' }}
+                    />
+
                     <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between">
                       <div>
                         <p className="text-white font-bold text-sm">{slide.name}</p>
                         <p className="text-white/70 text-[10px]">{slide.subtitle}</p>
                       </div>
-                      <span className="px-2 py-1 rounded-full text-[10px] font-bold text-white"
-                        style={{ backgroundColor: slide.accent }}>{slide.badge}</span>
+                      <motion.span
+                        className="px-2 py-1 rounded-full text-[10px] font-bold text-white"
+                        style={{ backgroundColor: slide.accent }}
+                        animate={{ scale: [1, 1.06, 1] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                      >
+                        {slide.badge}
+                      </motion.span>
                     </div>
                   </div>
                 </motion.div>
+
+                {/* Glow under image */}
+                <motion.div
+                  className="absolute -bottom-6 left-[10%] right-[10%] h-8 rounded-full blur-2xl opacity-40"
+                  style={{ backgroundColor: slide.accent }}
+                  animate={{ opacity: [0.3, 0.55, 0.3] }}
+                  transition={{ duration: 2.5, repeat: Infinity }}
+                />
               </motion.div>
             </AnimatePresence>
           </div>
