@@ -2,6 +2,8 @@ import { Routes, Route, Navigate } from 'react-router'
 import { useAuth } from './hooks/useAuth'
 import Home from './pages/Home'
 import Login from './pages/Login'
+import AdminLogin from './pages/AdminLogin'
+import ChangePassword from './pages/ChangePassword'
 import AdminDashboard from './pages/AdminDashboard'
 import AgentDashboard from './pages/AgentDashboard'
 import NetworkPage from './pages/NetworkPage'
@@ -23,12 +25,14 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/login/admin" element={<AdminLogin />} />
+      <Route path="/change-password" element={<ChangePassword />} />
       <Route path="/mi-red" element={<NetworkPage />} />
       <Route path="/mis-pedidos" element={<OrderHistory />} />
       <Route
         path="/admin"
         element={
-          user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />
+          user?.role === 'admin' ? <AdminDashboard /> : <Navigate to="/login/admin" />
         }
       />
       <Route
