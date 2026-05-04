@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,19 +13,9 @@ import { toast } from "sonner";
 import {
   ArrowLeft, DollarSign, ShoppingCart, Users, TrendingUp,
   Package, LogOut, Star, BadgeCheck, Phone, Mail, Target, Award,
-  Wallet, ChevronUp, Zap, Calendar, ArrowUpRight, Gift
+  Wallet, ChevronUp, Zap, Calendar, ArrowUpRight, Gift, CheckCircle2
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-
-const salesMock = [
-  { name: "Lun", ventas: 14500, comision: 725 },
-  { name: "Mar", ventas: 8200, comision: 410 },
-  { name: "Mie", ventas: 19800, comision: 990 },
-  { name: "Jue", ventas: 24200, comision: 1210 },
-  { name: "Vie", ventas: 18100, comision: 905 },
-  { name: "Sab", ventas: 35500, comision: 1775 },
-  { name: "Dom", ventas: 28200, comision: 1410 },
-];
 
 const COMMISSION_TIERS = [
   { name: 'Bronce', min: 0, rate: 0.03, color: 'from-amber-600 to-amber-700', icon: Award },
@@ -34,6 +24,8 @@ const COMMISSION_TIERS = [
   { name: 'Platino', min: 100000, rate: 0.10, color: 'from-cyan-400 to-cyan-500', icon: Award },
   { name: 'Diamante', min: 250000, rate: 0.15, color: 'from-blue-500 to-purple-500', icon: Award },
 ];
+
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
 
 export default function AgentDashboard() {
   const navigate = useNavigate();
@@ -52,6 +44,29 @@ export default function AgentDashboard() {
   const commission = totalSales * commissionRate;
   const monthlyTarget = nextTier ? nextTier.min : 500000;
   const targetProgress = Math.min(100, (totalSales / monthlyTarget) * 100);
+
+  // Build last-7-days chart from real agent orders
+  const salesChartData = useMemo(() => {
+    const today = new Date();
+    const buckets: Record<string, { ventas: number; comision: number }> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      buckets[DAY_NAMES[d.getDay()]] = { ventas: 0, comision: 0 };
+    }
+    myOrders.forEach(o => {
+      const d = new Date(o.createdAt);
+      const diffDays = Math.floor((today.getTime() - d.getTime()) / 86400000);
+      if (diffDays <= 6) {
+        const key = DAY_NAMES[d.getDay()];
+        if (buckets[key]) {
+          buckets[key].ventas += Number(o.total || 0);
+          buckets[key].comision += Number(o.total || 0) * commissionRate;
+        }
+      }
+    });
+    return Object.entries(buckets).map(([name, b]) => ({ name, ventas: Math.round(b.ventas), comision: Math.round(b.comision) }));
+  }, [myOrders, commissionRate]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
@@ -152,7 +167,7 @@ export default function AgentDashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#1428A0]" /> Mis Ventas Semanales</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={salesMock}>
+                  <AreaChart data={salesChartData}>
                     <defs><linearGradient id="agentSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1428A0" stopOpacity={0.3} /><stop offset="95%" stopColor="#1428A0" stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ borderRadius: 12, fontSize: 11 }} />
@@ -167,7 +182,7 @@ export default function AgentDashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Wallet className="w-4 h-4 text-[#1428A0]" /> Comisiones Diarias</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={salesMock}>
+                  <BarChart data={salesChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ borderRadius: 12, fontSize: 11 }} />
                     <Bar dataKey="comision" fill="#0077C8" radius={[4, 4, 0, 0]} />

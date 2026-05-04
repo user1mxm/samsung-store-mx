@@ -32,6 +32,7 @@ export const orderRouter = createRouter({
     .input(
       z.object({
         total: z.number().or(z.string()),
+        agentId: z.number().optional(),
         items: z.array(
           z.object({
             productId: z.number(),
@@ -47,6 +48,7 @@ export const orderRouter = createRouter({
       // @ts-ignore
       const orderResult = await db.insert(orders).values([{
         userId: ctx.user.id,
+        agentId: input.agentId ?? null,
         total: String(input.total),
         shippingAddress: input.shippingAddress ? JSON.stringify(input.shippingAddress) : null,
       }]);

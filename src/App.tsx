@@ -5,8 +5,8 @@ import Login from './pages/Login'
 import AdminDashboard from './pages/AdminDashboard'
 import AgentDashboard from './pages/AgentDashboard'
 import NetworkPage from './pages/NetworkPage'
+import OrderHistory from './pages/OrderHistory'
 import NotFound from './pages/NotFound'
-import { LoadingScreen } from './components/home/LoadingScreen'
 
 export default function App() {
   const { user, isLoading } = useAuth()
@@ -24,6 +24,7 @@ export default function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/mi-red" element={<NetworkPage />} />
+      <Route path="/mis-pedidos" element={<OrderHistory />} />
       <Route
         path="/admin"
         element={
