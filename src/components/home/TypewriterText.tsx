@@ -5,6 +5,12 @@ export function TypewriterText({ texts, speed = 80, delay = 2000 }: { texts: str
   const [index, setIndex] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
   const [textIndex, setTextIndex] = useState(0)
+  const [showCursor, setShowCursor] = useState(true)
+
+  useEffect(() => {
+    const cursorInterval = setInterval(() => setShowCursor(prev => !prev), 530)
+    return () => clearInterval(cursorInterval)
+  }, [])
 
   useEffect(() => {
     const currentText = texts[textIndex]
@@ -37,8 +43,16 @@ export function TypewriterText({ texts, speed = 80, delay = 2000 }: { texts: str
 
   return (
     <span className="inline-block">
-      {displayText}
-      <span className="inline-block w-[2px] h-[1em] bg-[#1428A0] ml-1 animate-pulse align-middle" />
+      <span className="text-shimmer">{displayText}</span>
+      <span
+        className="inline-block w-[3px] rounded-sm ml-1 align-middle transition-opacity duration-100"
+        style={{
+          height: '0.85em',
+          background: 'linear-gradient(180deg, #1428A0, #00BFFF)',
+          opacity: showCursor ? 1 : 0,
+          verticalAlign: 'middle',
+        }}
+      />
     </span>
   )
 }

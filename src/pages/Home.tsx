@@ -479,13 +479,30 @@ export default function Home() {
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-[56px]">
             {/* Logo */}
-            <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-2.5 shrink-0">
-              <img src="/logo-samsung-mx.png" alt="Samsung Store MX" className="w-8 h-8 object-contain" />
+            <motion.button
+              onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+              className="group flex items-center gap-2.5 shrink-0"
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            >
+              <motion.div
+                className="relative w-8 h-8"
+                animate={{ rotate: [0, 0, 0] }}
+              >
+                <img src="/logo-samsung-mx.png" alt="Samsung Store MX" className="w-8 h-8 object-contain relative z-10" />
+                <motion.div
+                  className="absolute inset-0 rounded-lg"
+                  style={{ background: 'radial-gradient(circle, rgba(20,40,160,0.35) 0%, transparent 70%)' }}
+                  animate={{ scale: [1, 1.4, 1], opacity: [0, 0.6, 0] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut', delay: 0.5 }}
+                />
+              </motion.div>
               <div className="hidden sm:block">
-                <span className={`text-[12px] font-black tracking-[0.12em] leading-none ${darkMode ? 'text-white' : 'text-[#1428A0]'}`}>SAMSUNG</span>
+                <span className="nav-logo-text text-[12px] font-black tracking-[0.12em] leading-none block">SAMSUNG</span>
                 <span className={`text-[8px] font-bold tracking-[0.2em] block leading-none mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>STORE MX</span>
               </div>
-            </button>
+            </motion.button>
 
             {/* Nav Links */}
             <div className="hidden md:flex items-center gap-6">
@@ -493,7 +510,7 @@ export default function Home() {
                 <button key={link.label} onClick={() => scrollTo(link.href)}
                   className={`text-[11px] font-semibold transition-colors relative group ${darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-[#1428A0]'}`}>
                   {link.label}
-                  <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-[#1428A0] transition-all duration-300 group-hover:w-full" />
+                  <span className="absolute -bottom-1 left-0 w-0 h-[2px] bg-gradient-to-r from-[#1428A0] to-[#00BFFF] transition-all duration-300 group-hover:w-full rounded-full" />
                 </button>
               ))}
             </div>
@@ -577,30 +594,95 @@ export default function Home() {
       {/* ═══ HERO: VR 360° ═══ */}
       <motion.section style={{ opacity: heroOpacity, y: heroY }} className="relative overflow-hidden">
         <div className={`${darkMode ? 'bg-gradient-to-b from-[#0a0a14] via-[#0a0a0f] to-[#0a0a0f]' : 'bg-gradient-to-b from-[#f4f6ff] via-white to-white'}`}>
-          <div className="absolute top-20 right-[10%] w-[500px] h-[500px] bg-[#1428A0]/6 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-0 left-[5%] w-[300px] h-[300px] bg-[#00BFFF]/5 rounded-full blur-[80px] pointer-events-none" />
+          {/* Ambient blobs */}
+          <motion.div
+            className="absolute top-20 right-[10%] w-[500px] h-[500px] rounded-full blur-[120px] pointer-events-none"
+            style={{ background: 'rgba(20,40,160,0.08)' }}
+            animate={{ scale: [1, 1.15, 1], opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <motion.div
+            className="absolute bottom-0 left-[5%] w-[300px] h-[300px] rounded-full blur-[80px] pointer-events-none"
+            style={{ background: 'rgba(0,191,255,0.07)' }}
+            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0.9, 0.5] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut', delay: 2 }}
+          />
+          {/* Dot grid (light mode only) */}
+          {!darkMode && (
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+              style={{ backgroundImage: 'radial-gradient(circle, #1428A0 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+          )}
+          {/* Floating micro-orbs */}
+          {[
+            { x: '8%',  y: '25%', size: 5, dur: 4.2, delay: 0,   color: '#1428A0' },
+            { x: '92%', y: '30%', size: 4, dur: 3.8, delay: 0.7, color: '#00BFFF' },
+            { x: '15%', y: '70%', size: 3, dur: 5.1, delay: 1.2, color: '#0077C8' },
+            { x: '85%', y: '65%', size: 5, dur: 4.5, delay: 0.4, color: '#1428A0' },
+            { x: '50%', y: '10%', size: 3, dur: 3.5, delay: 1.8, color: '#00BFFF' },
+          ].map((orb, i) => (
+            <motion.div
+              key={i}
+              className="absolute rounded-full pointer-events-none"
+              style={{ left: orb.x, top: orb.y, width: orb.size, height: orb.size, backgroundColor: orb.color }}
+              animate={{ y: [0, -14, 0], opacity: [0.4, 0.9, 0.4], scale: [1, 1.3, 1] }}
+              transition={{ duration: orb.dur, repeat: Infinity, ease: 'easeInOut', delay: orb.delay }}
+            />
+          ))}
 
           <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-10 sm:pb-16">
             {/* Hero Text */}
             <div className="text-center mb-8 sm:mb-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1428A0]/10 to-[#0077C8]/10 rounded-full mb-4 border border-[#1428A0]/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1428A0] animate-pulse" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1428A0]">Samsung 2024 · FloatLayer Design</span>
-                </div>
-                <h1 className={`text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] mb-3 max-w-3xl mx-auto ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  <TypewriterText texts={['S95H OLED · El Futuro Visual', 'Neo QLED 8K · Realidad Total', 'Odyssey G9 · Gaming Definitivo']} speed={55} delay={2800} />
-                </h1>
-                <p className={`text-sm max-w-lg mx-auto mb-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Rotacion 360° interactiva. Arrastra para explorar cada angulo del TV mas avanzado de Samsung.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-5 mb-2">
-                  {[{ icon: Shield, label: '5 Anos Garantia' }, { icon: Clock, label: '24h Express' }, { icon: Award, label: 'CES 2024' }].map(b => (
-                    <div key={b.label} className="flex items-center gap-1.5 text-gray-400">
-                      <b.icon className="w-3.5 h-3.5 text-[#1428A0]" /><span className="text-[10px] font-medium">{b.label}</span>
-                    </div>
-                  ))}
-                </div>
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1428A0]/10 to-[#0077C8]/10 rounded-full mb-4 border border-[#1428A0]/25"
+              >
+                <motion.span
+                  className="w-1.5 h-1.5 rounded-full bg-[#1428A0]"
+                  animate={{ scale: [1, 1.5, 1], opacity: [1, 0.4, 1] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#1428A0]">Samsung 2026 · FloatLayer Design</span>
+              </motion.div>
+
+              {/* Main heading */}
+              <motion.h1
+                initial={{ opacity: 0, y: 28 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                className={`text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] mb-3 max-w-3xl mx-auto ${darkMode ? 'text-white' : 'text-gray-900'}`}
+              >
+                <TypewriterText texts={['S95H OLED · El Futuro Visual', 'Neo QLED 8K · Realidad Total', 'Odyssey G9 · Gaming Definitivo']} speed={55} delay={2800} />
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.35 }}
+                className={`text-sm max-w-lg mx-auto mb-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+              >
+                Rotacion 360° interactiva. Arrastra para explorar cada angulo del TV mas avanzado de Samsung.
+              </motion.p>
+
+              {/* Trust badges with stagger */}
+              <motion.div
+                className="flex flex-wrap items-center justify-center gap-5 mb-2"
+                initial="hidden"
+                animate="show"
+                variants={{ hidden: {}, show: { transition: { staggerChildren: 0.12, delayChildren: 0.5 } } }}
+              >
+                {[{ icon: Shield, label: '5 Anos Garantia' }, { icon: Clock, label: '24h Express' }, { icon: Award, label: 'CES 2026' }].map(b => (
+                  <motion.div
+                    key={b.label}
+                    variants={{ hidden: { opacity: 0, y: 10 }, show: { opacity: 1, y: 0, transition: { duration: 0.4 } } }}
+                    className={`flex items-center gap-1.5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                    whileHover={{ scale: 1.05, color: '#1428A0' }}
+                  >
+                    <b.icon className="w-3.5 h-3.5 text-[#1428A0]" /><span className="text-[10px] font-medium">{b.label}</span>
+                  </motion.div>
+                ))}
               </motion.div>
             </div>
 
