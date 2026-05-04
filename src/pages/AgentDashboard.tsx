@@ -366,7 +366,7 @@ export default function AgentDashboard() {
                       }`}>
                       <div className="text-3xl mb-2">{a.icon}</div>
                       <p className={`text-[11px] font-black mb-1 ${unlocked ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>{a.name}</p>
-                      <p className="text-[9px] text-gray-400 leading-tight">{a.desc}</p>
+                      <p className="text-[10px] text-gray-400 leading-tight">{a.desc}</p>
                       {unlocked
                         ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto mt-2" />
                         : <Lock className="w-3.5 h-3.5 text-gray-300 mx-auto mt-2" />

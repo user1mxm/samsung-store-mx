@@ -107,7 +107,7 @@ export default function Login() {
             <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 dark:bg-[#1a1a2a] rounded-xl">
               {tabs.map((t) => (
                 <button key={t.id} onClick={() => { setTab(t.id); setIsRegister(false); }}
-                  className={`py-2 rounded-lg text-[9px] font-bold transition-all flex flex-col items-center gap-0.5 ${
+                  className={`py-2 rounded-lg text-[10px] font-bold transition-all flex flex-col items-center gap-0.5 ${
                     tab === t.id
                       ? t.id === "admin"
                         ? "bg-red-600 text-white shadow-md"

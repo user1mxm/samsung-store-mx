@@ -76,7 +76,7 @@ export const orderRouter = createRouter({
             .update(agents)
             .set({
               totalSales: newTotalSales.toFixed(2),
-              commission: sql`${agents.commission} + ${commissionEarned.toFixed(2)}`,
+              commission: sql`COALESCE(${agents.commission}, 0) + ${commissionEarned.toFixed(2)}`,
             })
             .where(eq(agents.id, input.agentId));
         }
