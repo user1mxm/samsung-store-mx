@@ -460,17 +460,42 @@ export default function AdminDashboard() {
           {activeTab === "agents" && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Users className="w-4 h-4 text-[#1428A0]" /> Agentes de Ventas</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Users className="w-4 h-4 text-[#1428A0]" /> Agentes de Ventas ({(agents || []).length})</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  {(agents || []).map((a) => (
-                    <div key={a.id} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white font-bold text-sm">{a.name?.[0] || 'A'}</div>
-                      <div className="flex-1 min-w-0"><p className="text-sm font-semibold">{a.name || 'Agente'}</p><p className="text-xs text-gray-500">{a.specialty || 'Ventas General'}</p></div>
-                      <div className="text-right"><p className="text-xs font-black text-[#1428A0]">${Number(a.commission || 0).toLocaleString()}</p>
-                        <div className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${a.status === 'online' ? 'bg-green-500' : a.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-400'}`} /><span className="text-[9px] text-gray-500">{a.status || 'offline'}</span></div>
-                      </div>
-                    </div>
-                  ))}
+                  {(agents || []).length === 0 ? (
+                    <div className="text-center py-10"><Users className="w-10 h-10 mx-auto text-gray-300 mb-2" /><p className="text-sm text-gray-400">Sin agentes registrados</p></div>
+                  ) : (
+                    (agents || []).map((a) => {
+                      const sales = Number(a.totalSales ?? 0);
+                      const commRate = (a as any).commissionRate ?? 0.03;
+                      const tierName = (a as any).tier?.name ?? 'Bronce';
+                      const tierColors: Record<string, string> = {
+                        Bronce: 'bg-amber-100 text-amber-700',
+                        Plata: 'bg-gray-100 text-gray-600',
+                        Oro: 'bg-yellow-100 text-yellow-700',
+                        Platino: 'bg-cyan-100 text-cyan-700',
+                        Diamante: 'bg-blue-100 text-blue-700',
+                      };
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white font-bold text-sm">{a.name?.[0] || 'A'}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold">{a.name || 'Agente'}</p>
+                              <Badge className={`text-[9px] font-bold px-1.5 ${tierColors[tierName] ?? tierColors.Bronce}`}>{tierName}</Badge>
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full">{(commRate * 100).toFixed(0)}% com</span>
+                            </div>
+                            <p className="text-xs text-gray-500">{a.specialty || 'Ventas General'}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs font-black text-[#1428A0]">${Number(a.commission || 0).toLocaleString()}</p>
+                            <p className="text-[9px] text-gray-400">${sales.toLocaleString()} ventas</p>
+                            <div className="flex items-center gap-1 justify-end mt-0.5"><span className={`w-1.5 h-1.5 rounded-full ${a.status === 'online' ? 'bg-green-500' : a.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-400'}`} /><span className="text-[9px] text-gray-500">{a.status || 'offline'}</span></div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
