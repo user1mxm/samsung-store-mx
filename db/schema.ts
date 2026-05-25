@@ -8,6 +8,7 @@ import {
   int,
   decimal,
   bigint,
+  boolean,
 } from "drizzle-orm/mysql-core";
 
 /* ─── USUARIOS ─── */
@@ -18,6 +19,11 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }).unique(),
   avatar: text("avatar"),
   password: varchar("password", { length: 255 }),
+  provider: mysqlEnum("provider", ["local", "google", "facebook", "twitter"]).default("local").notNull(),
+  emailVerified: boolean("emailVerified").default(false).notNull(),
+  mustChangePassword: boolean("mustChangePassword").default(false).notNull(),
+  passwordResetToken: varchar("passwordResetToken", { length: 255 }),
+  passwordResetExpiry: timestamp("passwordResetExpiry"),
   role: mysqlEnum("role", ["client", "agent", "admin"]).default("client").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().notNull().$onUpdate(() => new Date()),
@@ -62,6 +68,7 @@ export type InsertProduct = typeof products.$inferInsert;
 export const orders = mysqlTable("orders", {
   id: serial("id").primaryKey(),
   userId: bigint("userId", { mode: "number", unsigned: true }).notNull(),
+  agentId: bigint("agentId", { mode: "number", unsigned: true }),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   status: mysqlEnum("status", ["pending", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
   shippingAddress: text("shippingAddress"),

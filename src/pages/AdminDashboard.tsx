@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { trpc } from "@/providers/trpc";
@@ -29,7 +29,7 @@ export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [uploading, setUploading] = useState(false);
-  const [newProduct, setNewProduct] = useState({ name: '', model: '', category: 'oled', price: '', description: '', stock: '', rating: '4.5' });
+  const [newProduct, setNewProduct] = useState({ name: '', model: '', category: 'oled', price: '', description: '', stock: '', rating: '4.5', imageUrl: '' });
   const [editProduct, setEditProduct] = useState<any>(null);
   const [searchProduct, setSearchProduct] = useState('');
   const [statsAnimated, setStatsAnimated] = useState(false);
@@ -40,7 +40,26 @@ export default function AdminDashboard() {
   const { data: orders } = trpc.order.list.useQuery();
   const { data: agents } = trpc.agent.list.useQuery();
   const { data: reviews } = trpc.review.list.useQuery();
-  const { data: networkData } = trpc.referral?.getNetworkTree?.useQuery(undefined, { retry: false }) || { data: null };
+  const { data: networkData } = trpc.referral.getNetworkTree.useQuery(undefined, { retry: false });
+
+  const createProductMutation = trpc.product.create.useMutation({
+    onSuccess: () => {
+      toast.success(`Producto "${newProduct.name}" creado`);
+      setNewProduct({ name: '', model: '', category: 'oled', price: '', description: '', stock: '', rating: '4.5', imageUrl: '' });
+      refetchProducts();
+    },
+    onError: (e: any) => toast.error(e.message || 'Error al crear producto'),
+  });
+
+  const deleteProductMutation = trpc.product.delete.useMutation({
+    onSuccess: () => { toast.success('Producto eliminado'); refetchProducts(); },
+    onError: (e: any) => toast.error(e.message || 'Error al eliminar'),
+  });
+
+  const updateOrderStatusMutation = trpc.order.updateStatus.useMutation({
+    onSuccess: () => toast.success('Estado actualizado'),
+    onError: (e: any) => toast.error(e.message || 'Error al actualizar'),
+  });
 
   const totalRevenue = (orders || []).reduce((sum, o) => sum + Number(o.total || 0), 0);
   const pendingOrders = (orders || []).filter(o => o.status === "pending").length;
@@ -76,20 +95,27 @@ export default function AdminDashboard() {
       await new Promise<void>((resolve) => { reader.onload = (e) => { const url = e.target?.result as string; if (url) uploaded.push(url); resolve(); }; reader.readAsDataURL(file); });
     }
     setUploading(false);
-    toast.success(`${uploaded.length} imagenes subidas`);
+    toast.success(`${uploaded.length} imagenes procesadas`);
     refetchProducts();
   }, [refetchProducts]);
 
   const handleCreateProduct = () => {
     if (!newProduct.name || !newProduct.price) { toast.error('Nombre y precio son requeridos'); return; }
-    toast.success(`Producto "${newProduct.name}" creado`);
-    setNewProduct({ name: '', model: '', category: 'oled', price: '', description: '', stock: '', rating: '4.5' });
-    refetchProducts();
+    createProductMutation.mutate({
+      name: newProduct.name,
+      model: newProduct.model || newProduct.name,
+      category: newProduct.category,
+      price: newProduct.price,
+      imageUrl: newProduct.imageUrl || '/tv-neo-real.jpg',
+      description: newProduct.description || undefined,
+      stock: Number(newProduct.stock) || 0,
+      featured: 'no',
+    });
   };
 
   const handleDeleteProduct = (id: number) => {
-    toast.success('Producto eliminado');
-    refetchProducts();
+    if (!confirm('¿Eliminar este producto?')) return;
+    deleteProductMutation.mutate({ id });
   };
 
   const filteredProducts = (products || []).filter(p =>
@@ -97,15 +123,31 @@ export default function AdminDashboard() {
     p.model?.toLowerCase().includes(searchProduct.toLowerCase())
   );
 
-  const salesData = [
-    { name: "Lun", ventas: 42000, ordenes: 3, meta: 40000 },
-    { name: "Mar", ventas: 38500, ordenes: 2, meta: 40000 },
-    { name: "Mie", ventas: 51000, ordenes: 4, meta: 45000 },
-    { name: "Jue", ventas: 62000, ordenes: 5, meta: 50000 },
-    { name: "Vie", ventas: 48000, ordenes: 4, meta: 50000 },
-    { name: "Sab", ventas: 78000, ordenes: 7, meta: 60000 },
-    { name: "Dom", ventas: 65000, ordenes: 6, meta: 55000 },
-  ];
+  // Build last-7-days sales chart from real orders
+  const salesData = useMemo(() => {
+    const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+    const buckets: Record<string, { ventas: number; ordenes: number }> = {};
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const key = DAY_NAMES[d.getDay()];
+      buckets[key] = { ventas: 0, ordenes: 0 };
+    }
+    (orders || []).forEach(o => {
+      const d = new Date(o.createdAt);
+      const diffDays = Math.floor((today.getTime() - d.getTime()) / 86400000);
+      if (diffDays <= 6) {
+        const key = DAY_NAMES[d.getDay()];
+        if (buckets[key]) {
+          buckets[key].ventas += Number(o.total || 0);
+          buckets[key].ordenes += 1;
+        }
+      }
+    });
+    const avg = Object.values(buckets).reduce((s, b) => s + b.ventas, 0) / 7 || 40000;
+    return Object.entries(buckets).map(([name, b]) => ({ name, ventas: b.ventas, ordenes: b.ordenes, meta: Math.round(avg) }));
+  }, [orders]);
 
   const cats: Record<string, number> = {};
   (products || []).forEach(p => { cats[p.category] = (cats[p.category] || 0) + 1; });
@@ -122,7 +164,7 @@ export default function AdminDashboard() {
 
   const tabIcons: Record<string, any> = {
     overview: Activity, products: Package, orders: ShoppingCart,
-    agents: Users, reviews: Star, upload: Upload
+    agents: Users, reviews: Star, upload: Upload, network: BarChart3
   };
 
   return (
@@ -269,13 +311,13 @@ export default function AdminDashboard() {
 
         {/* Tab Navigation */}
         <div className="flex gap-2 mt-6 mb-4 overflow-x-auto pb-1">
-          {["overview", "products", "orders", "agents", "reviews", "upload"].map((tab) => {
+          {["overview", "products", "orders", "agents", "reviews", "network", "upload"].map((tab) => {
             const Icon = tabIcons[tab];
             return (
               <Button key={tab} variant={activeTab === tab ? "default" : "outline"}
                 className={`rounded-full text-[11px] capitalize font-bold ${activeTab === tab ? "bg-[#1428A0] text-white shadow-md" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
                 onClick={() => setActiveTab(tab)}>
-                <Icon className="w-3.5 h-3.5 mr-1" /> {tab === 'upload' ? 'Subir' : tab}
+                <Icon className="w-3.5 h-3.5 mr-1" /> {tab === 'upload' ? 'Subir' : tab === 'network' ? 'Red' : tab}
               </Button>
             );
           })}
@@ -363,8 +405,9 @@ export default function AdminDashboard() {
                     <Input placeholder="Precio MXN *" type="number" value={newProduct.price} onChange={e => setNewProduct({ ...newProduct, price: e.target.value })} className="h-10 rounded-xl text-sm" />
                   </div>
                   <Input placeholder="Stock" type="number" value={newProduct.stock} onChange={e => setNewProduct({ ...newProduct, stock: e.target.value })} className="h-10 rounded-xl text-sm" />
+                  <Input placeholder="URL de imagen" value={newProduct.imageUrl} onChange={e => setNewProduct({ ...newProduct, imageUrl: e.target.value })} className="h-10 rounded-xl text-sm" />
                   <textarea placeholder="Descripcion" value={newProduct.description} onChange={e => setNewProduct({ ...newProduct, description: e.target.value })} className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[80px] resize-none" />
-                  <Button className="w-full h-11 samsung-btn-primary rounded-xl text-sm font-bold" onClick={handleCreateProduct}><Check className="w-4 h-4 mr-2" /> Crear Producto</Button>
+                  <Button className="w-full h-11 samsung-btn-primary rounded-xl text-sm font-bold" onClick={handleCreateProduct} disabled={createProductMutation.isPending}><Check className="w-4 h-4 mr-2" /> {createProductMutation.isPending ? 'Creando...' : 'Crear Producto'}</Button>
                 </CardContent>
               </Card>
             </motion.div>
@@ -384,10 +427,25 @@ export default function AdminDashboard() {
                     (orders || []).map((o) => (
                       <div key={o.id} className="flex justify-between items-center p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
                         <div className="flex items-center gap-3"><div className="w-10 h-10 rounded-xl bg-[#1428A0]/10 flex items-center justify-center"><CreditCard className="w-4 h-4 text-[#1428A0]" /></div>
-                          <div><p className="text-xs font-bold">Orden #{o.id}</p><p className="text-[10px] text-gray-500">{new Date(o.createdAt).toLocaleDateString('es-MX')}</p></div>
+                          <div>
+                            <p className="text-xs font-bold">Orden #{o.id}</p>
+                            <p className="text-[10px] text-gray-500">{new Date(o.createdAt).toLocaleDateString('es-MX')}</p>
+                            {o.agentId && <p className="text-[9px] text-[#1428A0]">Agente #{o.agentId}</p>}
+                          </div>
                         </div>
-                        <div className="text-right"><p className="text-sm font-black text-[#1428A0]">${Number(o.total || 0).toLocaleString()}</p>
-                          <Badge className={`text-[10px] ${o.status === 'pending' ? 'bg-orange-100 text-orange-700' : o.status === 'delivered' || o.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{o.status}</Badge>
+                        <div className="text-right flex flex-col items-end gap-1">
+                          <p className="text-sm font-black text-[#1428A0]">${Number(o.total || 0).toLocaleString()}</p>
+                          <select
+                            value={o.status}
+                            onChange={e => updateOrderStatusMutation.mutate({ id: o.id, status: e.target.value as any })}
+                            className="text-[10px] border border-gray-200 rounded-lg px-1.5 py-0.5 bg-white cursor-pointer"
+                          >
+                            <option value="pending">Pendiente</option>
+                            <option value="processing">Procesando</option>
+                            <option value="shipped">Enviado</option>
+                            <option value="delivered">Entregado</option>
+                            <option value="cancelled">Cancelado</option>
+                          </select>
                         </div>
                       </div>
                     ))
@@ -402,17 +460,42 @@ export default function AdminDashboard() {
           {activeTab === "agents" && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Users className="w-4 h-4 text-[#1428A0]" /> Agentes de Ventas</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Users className="w-4 h-4 text-[#1428A0]" /> Agentes de Ventas ({(agents || []).length})</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  {(agents || []).map((a) => (
-                    <div key={a.id} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white font-bold text-sm">{a.name?.[0] || 'A'}</div>
-                      <div className="flex-1 min-w-0"><p className="text-sm font-semibold">{a.name || 'Agente'}</p><p className="text-xs text-gray-500">{a.specialty || 'Ventas General'}</p></div>
-                      <div className="text-right"><p className="text-xs font-black text-[#1428A0]">${Number(a.commission || 0).toLocaleString()}</p>
-                        <div className="flex items-center gap-1"><span className={`w-1.5 h-1.5 rounded-full ${a.status === 'online' ? 'bg-green-500' : a.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-400'}`} /><span className="text-[9px] text-gray-500">{a.status || 'offline'}</span></div>
-                      </div>
-                    </div>
-                  ))}
+                  {(agents || []).length === 0 ? (
+                    <div className="text-center py-10"><Users className="w-10 h-10 mx-auto text-gray-300 mb-2" /><p className="text-sm text-gray-400">Sin agentes registrados</p></div>
+                  ) : (
+                    (agents || []).map((a) => {
+                      const sales = Number(a.totalSales ?? 0);
+                      const commRate = (a as any).commissionRate ?? 0.03;
+                      const tierName = (a as any).tier?.name ?? 'Bronce';
+                      const tierColors: Record<string, string> = {
+                        Bronce: 'bg-amber-100 text-amber-700',
+                        Plata: 'bg-gray-100 text-gray-600',
+                        Oro: 'bg-yellow-100 text-yellow-700',
+                        Platino: 'bg-cyan-100 text-cyan-700',
+                        Diamante: 'bg-blue-100 text-blue-700',
+                      };
+                      return (
+                        <div key={a.id} className="flex items-center gap-3 p-4 bg-gray-50 dark:bg-white/5 rounded-xl">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white font-bold text-sm">{a.name?.[0] || 'A'}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="text-sm font-semibold">{a.name || 'Agente'}</p>
+                              <Badge className={`text-[9px] font-bold px-1.5 ${tierColors[tierName] ?? tierColors.Bronce}`}>{tierName}</Badge>
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/20 px-1.5 py-0.5 rounded-full">{(commRate * 100).toFixed(0)}% com</span>
+                            </div>
+                            <p className="text-xs text-gray-500">{a.specialty || 'Ventas General'}</p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-xs font-black text-[#1428A0]">${Number(a.commission || 0).toLocaleString()}</p>
+                            <p className="text-[9px] text-gray-400">${sales.toLocaleString()} ventas</p>
+                            <div className="flex items-center gap-1 justify-end mt-0.5"><span className={`w-1.5 h-1.5 rounded-full ${a.status === 'online' ? 'bg-green-500' : a.status === 'busy' ? 'bg-yellow-500' : 'bg-gray-400'}`} /><span className="text-[9px] text-gray-500">{a.status || 'offline'}</span></div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
                 </CardContent>
               </Card>
             </motion.div>
@@ -437,6 +520,53 @@ export default function AdminDashboard() {
                         <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{r.comment}</p>
                       </div>
                     ))
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {activeTab === "network" && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><BarChart3 className="w-4 h-4 text-[#1428A0]" /> Red de Embajadores ({(networkData || []).length})</CardTitle></CardHeader>
+                <CardContent>
+                  {!(networkData || []).length ? (
+                    <div className="text-center py-10"><Users className="w-10 h-10 mx-auto text-gray-300 mb-2" /><p className="text-sm text-gray-400">Sin miembros registrados</p></div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead><tr className="border-b border-gray-100 bg-gray-50/50">
+                          <th className="text-left p-3 font-bold text-[10px] uppercase tracking-wider text-gray-500">Usuario</th>
+                          <th className="text-left p-3 font-bold text-[10px] uppercase tracking-wider text-gray-500">Codigo</th>
+                          <th className="text-left p-3 font-bold text-[10px] uppercase tracking-wider text-gray-500">Nivel</th>
+                          <th className="text-left p-3 font-bold text-[10px] uppercase tracking-wider text-gray-500">Red</th>
+                          <th className="text-left p-3 font-bold text-[10px] uppercase tracking-wider text-gray-500">Ventas Red</th>
+                          <th className="text-left p-3 font-bold text-[10px] uppercase tracking-wider text-gray-500">Ganancias</th>
+                        </tr></thead>
+                        <tbody>
+                          {(networkData || []).map((n: any) => (
+                            <tr key={n.userId} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                              <td className="p-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white text-[10px] font-bold">{(n.name || 'U')[0]}</div>
+                                  <div>
+                                    <p className="font-medium">{n.name}</p>
+                                    <p className="text-[9px] text-gray-400">{n.email}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="p-3 font-mono text-[10px] text-[#1428A0] font-bold">{n.referralCode}</td>
+                              <td className="p-3"><Badge variant="outline" className="text-[9px]">Nivel {n.level}</Badge></td>
+                              <td className="p-3 font-bold">{n.networkSize}</td>
+                              <td className="p-3 font-black text-[#1428A0]">${Number(n.totalNetworkSales || 0).toLocaleString()}</td>
+                              <td className="p-3 font-black text-emerald-600">${Number(n.totalEarnings || 0).toLocaleString()}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </CardContent>
               </Card>

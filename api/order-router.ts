@@ -2,8 +2,9 @@
 import { z } from "zod";
 import { createRouter, authedQuery, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
-import { orders, orderItems } from "@db/schema";
-import { eq, desc } from "drizzle-orm";
+import { orders, orderItems, agents } from "@db/schema";
+import { eq, desc, sql } from "drizzle-orm";
+import { getAgentTier } from "./agent-router";
 
 export const orderRouter = createRouter({
   list: authedQuery.query(async ({ ctx }) => {
@@ -32,6 +33,7 @@ export const orderRouter = createRouter({
     .input(
       z.object({
         total: z.number().or(z.string()),
+        agentId: z.number().optional(),
         items: z.array(
           z.object({
             productId: z.number(),
@@ -47,6 +49,7 @@ export const orderRouter = createRouter({
       // @ts-ignore
       const orderResult = await db.insert(orders).values([{
         userId: ctx.user.id,
+        agentId: input.agentId ?? null,
         total: String(input.total),
         shippingAddress: input.shippingAddress ? JSON.stringify(input.shippingAddress) : null,
       }]);
@@ -59,6 +62,24 @@ export const orderRouter = createRouter({
           quantity: item.quantity,
           price: String(item.price),
         });
+      }
+
+      // Auto-update agent's totalSales and commission based on dynamic tier
+      if (input.agentId) {
+        const agentRows = await db.select().from(agents).where(eq(agents.id, input.agentId)).limit(1);
+        if (agentRows.length > 0) {
+          const agent = agentRows[0];
+          const newTotalSales = Number(agent.totalSales ?? 0) + Number(input.total);
+          const tier = getAgentTier(newTotalSales);
+          const commissionEarned = Number(input.total) * tier.rate;
+          await db
+            .update(agents)
+            .set({
+              totalSales: newTotalSales.toFixed(2),
+              commission: sql`COALESCE(${agents.commission}, 0) + ${commissionEarned.toFixed(2)}`,
+            })
+            .where(eq(agents.id, input.agentId));
+        }
       }
 
       return { success: true, orderId };

@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,19 +13,10 @@ import { toast } from "sonner";
 import {
   ArrowLeft, DollarSign, ShoppingCart, Users, TrendingUp,
   Package, LogOut, Star, BadgeCheck, Phone, Mail, Target, Award,
-  Wallet, ChevronUp, Zap, Calendar, ArrowUpRight, Gift
+  Wallet, ChevronUp, Zap, Calendar, ArrowUpRight, Gift, CheckCircle2,
+  Lock, Trophy
 } from "lucide-react";
 import { ResponsiveContainer, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
-
-const salesMock = [
-  { name: "Lun", ventas: 14500, comision: 725 },
-  { name: "Mar", ventas: 8200, comision: 410 },
-  { name: "Mie", ventas: 19800, comision: 990 },
-  { name: "Jue", ventas: 24200, comision: 1210 },
-  { name: "Vie", ventas: 18100, comision: 905 },
-  { name: "Sab", ventas: 35500, comision: 1775 },
-  { name: "Dom", ventas: 28200, comision: 1410 },
-];
 
 const COMMISSION_TIERS = [
   { name: 'Bronce', min: 0, rate: 0.03, color: 'from-amber-600 to-amber-700', icon: Award },
@@ -35,23 +26,69 @@ const COMMISSION_TIERS = [
   { name: 'Diamante', min: 250000, rate: 0.15, color: 'from-blue-500 to-purple-500', icon: Award },
 ];
 
+const ACHIEVEMENTS = [
+  { id: 'welcome', name: 'Bienvenido', desc: 'Te uniste como agente Samsung', icon: '🎉', checkSales: 0, checkOrders: 0 },
+  { id: 'first_sale', name: 'Primera Venta', desc: 'Realiza tu primera venta', icon: '🏆', checkSales: 0, checkOrders: 1 },
+  { id: 'silver', name: 'Nivel Plata', desc: 'Alcanza $20,000 en ventas', icon: '🥈', checkSales: 20000, checkOrders: 0 },
+  { id: 'gold', name: 'Nivel Oro', desc: 'Alcanza $50,000 en ventas', icon: '🥇', checkSales: 50000, checkOrders: 0 },
+  { id: 'platinum', name: 'Nivel Platino', desc: 'Alcanza $100,000 en ventas', icon: '💎', checkSales: 100000, checkOrders: 0 },
+  { id: 'diamond', name: 'Nivel Diamante', desc: 'Alcanza $250,000 en ventas', icon: '👑', checkSales: 250000, checkOrders: 0 },
+  { id: 'ten_orders', name: '10 Ventas', desc: 'Completa 10 ordenes', icon: '⭐', checkSales: 0, checkOrders: 10 },
+  { id: 'fifty_orders', name: '50 Ventas', desc: 'Completa 50 ordenes', icon: '🌟', checkSales: 0, checkOrders: 50 },
+];
+
+const DAY_NAMES = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+
 export default function AgentDashboard() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [activeTab, setActiveTab] = useState("ventas");
 
+  const { data: agentStats } = trpc.agent.getMyStats.useQuery(undefined, { retry: false });
   const { data: products } = trpc.product.list.useQuery();
   const { data: orders } = trpc.order.list.useQuery();
   const { data: reviews } = trpc.review.list.useQuery();
 
-  const myOrders = (orders || []).filter(o => o.agentId === user?.id);
-  const totalSales = myOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  // Use real agent.id from DB to filter orders (not users.id)
+  const myOrders = (orders || []).filter(o => o.agentId === (agentStats?.id ?? -1));
+  // Prefer totalSales from DB; fall back to summing local orders
+  const totalSales = agentStats ? Number(agentStats.totalSales ?? 0) : myOrders.reduce((sum, o) => sum + Number(o.total || 0), 0);
   const currentTier = COMMISSION_TIERS.slice().reverse().find(t => totalSales >= t.min) || COMMISSION_TIERS[0];
   const nextTier = COMMISSION_TIERS.find(t => t.min > totalSales);
-  const commissionRate = currentTier.rate;
-  const commission = totalSales * commissionRate;
+  // Prefer rate from DB-computed tier
+  const commissionRate = agentStats?.commissionRate ?? currentTier.rate;
+  const commission = agentStats ? Number(agentStats.commission ?? 0) : totalSales * commissionRate;
   const monthlyTarget = nextTier ? nextTier.min : 500000;
   const targetProgress = Math.min(100, (totalSales / monthlyTarget) * 100);
+  const orderCount = agentStats?.orderCount ?? myOrders.length;
+
+  // Achievements
+  const unlockedAchievements = ACHIEVEMENTS.filter(a =>
+    totalSales >= a.checkSales && orderCount >= a.checkOrders
+  );
+
+  // Build last-7-days chart from real agent orders
+  const salesChartData = useMemo(() => {
+    const today = new Date();
+    const buckets: Record<string, { ventas: number; comision: number }> = {};
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      buckets[DAY_NAMES[d.getDay()]] = { ventas: 0, comision: 0 };
+    }
+    myOrders.forEach(o => {
+      const d = new Date(o.createdAt);
+      const diffDays = Math.floor((today.getTime() - d.getTime()) / 86400000);
+      if (diffDays <= 6) {
+        const key = DAY_NAMES[d.getDay()];
+        if (buckets[key]) {
+          buckets[key].ventas += Number(o.total || 0);
+          buckets[key].comision += Number(o.total || 0) * commissionRate;
+        }
+      }
+    });
+    return Object.entries(buckets).map(([name, b]) => ({ name, ventas: Math.round(b.ventas), comision: Math.round(b.comision) }));
+  }, [myOrders, commissionRate]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#0a0a0f]">
@@ -152,7 +189,7 @@ export default function AgentDashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><TrendingUp className="w-4 h-4 text-[#1428A0]" /> Mis Ventas Semanales</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={salesMock}>
+                  <AreaChart data={salesChartData}>
                     <defs><linearGradient id="agentSales" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#1428A0" stopOpacity={0.3} /><stop offset="95%" stopColor="#1428A0" stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ borderRadius: 12, fontSize: 11 }} />
@@ -167,7 +204,7 @@ export default function AgentDashboard() {
               <CardHeader className="pb-2"><CardTitle className="text-sm font-bold flex items-center gap-2"><Wallet className="w-4 h-4 text-[#1428A0]" /> Comisiones Diarias</CardTitle></CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={200}>
-                  <BarChart data={salesMock}>
+                  <BarChart data={salesChartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" /><XAxis dataKey="name" tick={{ fontSize: 10 }} /><YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => `$${v}`} />
                     <Tooltip formatter={(v: number) => `$${v.toLocaleString()}`} contentStyle={{ borderRadius: 12, fontSize: 11 }} />
                     <Bar dataKey="comision" fill="#0077C8" radius={[4, 4, 0, 0]} />
@@ -184,6 +221,7 @@ export default function AgentDashboard() {
             { id: "ventas", label: "Mis Ventas", icon: ShoppingCart },
             { id: "productos", label: "Catalogo", icon: Package },
             { id: "comisiones", label: "Comisiones", icon: Wallet },
+            { id: "logros", label: "Logros", icon: Trophy },
           ].map((t) => (
             <Button key={t.id} variant={activeTab === t.id ? "default" : "outline"}
               className={`rounded-full text-[11px] font-bold capitalize ${activeTab === t.id ? "bg-[#1428A0] text-white shadow-md" : "border-gray-200 text-gray-600 hover:bg-gray-50"}`}
@@ -296,6 +334,64 @@ export default function AgentDashboard() {
                   )}
                 </CardContent>
               </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Logros Tab */}
+        <AnimatePresence mode="wait">
+          {activeTab === "logros" && (
+            <motion.div key="logros" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              {/* Summary */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="text-center p-4 bg-[#1428A0]/5 rounded-xl border border-[#1428A0]/10">
+                  <p className="text-2xl font-black text-[#1428A0]">{unlockedAchievements.length}</p>
+                  <p className="text-[9px] text-[#1428A0] font-bold uppercase">Logros Desbloqueados</p>
+                </div>
+                <div className="text-center p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-100 dark:border-emerald-800">
+                  <p className="text-2xl font-black text-emerald-600">{ACHIEVEMENTS.length - unlockedAchievements.length}</p>
+                  <p className="text-[9px] text-emerald-600 font-bold uppercase">Por Desbloquear</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {ACHIEVEMENTS.map((a) => {
+                  const unlocked = totalSales >= a.checkSales && orderCount >= a.checkOrders;
+                  return (
+                    <motion.div key={a.id} whileHover={{ y: -2 }}
+                      className={`p-4 rounded-xl text-center transition-all border ${
+                        unlocked
+                          ? 'bg-white dark:bg-[#14141f] border-[#1428A0]/20 shadow-sm'
+                          : 'bg-gray-50 dark:bg-[#14141f]/50 border-gray-200 dark:border-gray-800 opacity-50 grayscale'
+                      }`}>
+                      <div className="text-3xl mb-2">{a.icon}</div>
+                      <p className={`text-[11px] font-black mb-1 ${unlocked ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>{a.name}</p>
+                      <p className="text-[10px] text-gray-400 leading-tight">{a.desc}</p>
+                      {unlocked
+                        ? <CheckCircle2 className="w-4 h-4 text-emerald-500 mx-auto mt-2" />
+                        : <Lock className="w-3.5 h-3.5 text-gray-300 mx-auto mt-2" />
+                      }
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Next milestone hint */}
+              {nextTier && (
+                <Card className="border-0 shadow-sm mt-4 bg-gradient-to-r from-[#1428A0]/5 to-[#0077C8]/5 border-[#1428A0]/10">
+                  <CardContent className="p-4 flex items-center gap-3">
+                    <Zap className="w-8 h-8 text-[#1428A0] shrink-0" />
+                    <div>
+                      <p className="text-sm font-black text-gray-900 dark:text-white">
+                        Faltan ${(nextTier.min - totalSales).toLocaleString()} para nivel {nextTier.name}
+                      </p>
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        Sube tu comision de {commissionRate * 100}% a {nextTier.rate * 100}% por venta
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

@@ -13,7 +13,7 @@ import {
   Users, DollarSign, TrendingUp, Copy, ArrowLeft, Sparkles,
   Share2, Crown, Award, Target, Zap, Gift, ChevronRight,
   Wallet, CheckCircle2, UserPlus, BarChart3, Crown as CrownIcon,
-  Medal, Star, ArrowUpRight, Layers
+  Medal, Star, ArrowUpRight, Layers, ArrowDownToLine, Clock, XCircle
 } from 'lucide-react'
 
 const TIERS = [
@@ -43,20 +43,41 @@ export default function NetworkPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [referralCode, setReferralCode] = useState('')
-  const [activeSection, setActiveSection] = useState<'overview' | 'network' | 'leaderboard'>('overview')
+  const [activeSection, setActiveSection] = useState<'overview' | 'network' | 'leaderboard' | 'retiros'>('overview')
+  const [withdrawAmount, setWithdrawAmount] = useState('')
+  const [withdrawMethod, setWithdrawMethod] = useState<'spei' | 'oxxo' | 'paypal'>('spei')
+  const [withdrawAccount, setWithdrawAccount] = useState('')
 
-  const { data: myReferral } = trpc.referral?.getMyReferral?.useQuery(undefined, { retry: false }) || { data: null }
-  const { data: networkData, refetch: refetchNetwork } = trpc.referral?.getMyNetwork?.useQuery(undefined, { retry: false }) || { data: null }
-  const { data: commissionsData } = trpc.referral?.getMyCommissions?.useQuery(undefined, { retry: false }) || { data: null }
+  const { data: myReferral } = trpc.referral.getMyReferral.useQuery(undefined, { retry: false })
+  const { data: networkData, refetch: refetchNetwork } = trpc.referral.getMyNetwork.useQuery(undefined, { retry: false })
+  const { data: commissionsData } = trpc.referral.getMyCommissions.useQuery(undefined, { retry: false })
+  const { data: withdrawals, refetch: refetchWithdrawals } = trpc.withdrawal.list.useQuery(undefined, { retry: false })
 
-  const joinMutation = trpc.referral?.joinWithCode?.useMutation?.({
+  const joinMutation = trpc.referral.joinWithCode.useMutation({
     onSuccess: () => { toast.success('Te uniste exitosamente al programa'); refetchNetwork(); },
     onError: (e: any) => toast.error(e.message),
-  }) || { mutate: () => toast.error('Funcionalidad no disponible'), isPending: false }
+  })
+
+  const withdrawMutation = trpc.withdrawal.request.useMutation({
+    onSuccess: () => {
+      toast.success('Solicitud de retiro enviada')
+      setWithdrawAmount('')
+      setWithdrawAccount('')
+      refetchWithdrawals()
+    },
+    onError: (e: any) => toast.error(e.message),
+  })
 
   const handleJoin = () => {
     if (!referralCode.trim()) { toast.error('Ingresa un codigo'); return }
     joinMutation.mutate({ code: referralCode.trim() })
+  }
+
+  const handleWithdraw = () => {
+    const amt = Number(withdrawAmount)
+    if (!amt || amt <= 0) { toast.error('Ingresa un monto valido'); return }
+    if (!withdrawAccount.trim()) { toast.error('Ingresa tu cuenta de destino'); return }
+    withdrawMutation.mutate({ amount: amt, method: withdrawMethod, accountInfo: withdrawAccount })
   }
 
   const copyCode = (code: string) => {
@@ -143,6 +164,7 @@ export default function NetworkPage() {
             { id: 'overview', label: 'Resumen', icon: BarChart3 },
             { id: 'network', label: 'Mi Red', icon: Users },
             { id: 'leaderboard', label: 'Leaderboard', icon: CrownIcon },
+            { id: 'retiros', label: 'Retiros', icon: Wallet },
           ].map(tab => (
             <motion.button key={tab.id} whileTap={{ scale: 0.95 }} onClick={() => setActiveSection(tab.id as any)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-[11px] font-bold transition-all shrink-0 ${
@@ -482,6 +504,103 @@ export default function NetworkPage() {
                   </CardContent>
                 </Card>
               </div>
+            </motion.div>
+          )}
+
+          {/* RETIROS SECTION */}
+          {activeSection === 'retiros' && (
+            <motion.div key="retiros" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="max-w-2xl mx-auto space-y-6">
+              {/* Balance cards */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="border-0 bg-white/5 backdrop-blur">
+                  <CardContent className="p-5 text-center">
+                    <Wallet className="w-6 h-6 text-emerald-400 mx-auto mb-2" />
+                    <p className="text-2xl font-black text-emerald-400">${Number(commissionsData?.totalPending || 0).toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Disponible para retirar</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-0 bg-white/5 backdrop-blur">
+                  <CardContent className="p-5 text-center">
+                    <CheckCircle2 className="w-6 h-6 text-[#00BFFF] mx-auto mb-2" />
+                    <p className="text-2xl font-black text-[#00BFFF]">${Number(commissionsData?.totalPaid || 0).toLocaleString()}</p>
+                    <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-1">Total retirado</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Request form */}
+              <Card className="border-0 bg-gradient-to-b from-[#1428A0]/20 to-transparent backdrop-blur">
+                <CardContent className="p-6 space-y-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ArrowDownToLine className="w-5 h-5 text-[#00BFFF]" />
+                    <h3 className="font-bold text-base">Solicitar Retiro</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    {(['spei', 'oxxo', 'paypal'] as const).map(m => (
+                      <button key={m} onClick={() => setWithdrawMethod(m)}
+                        className={`flex-1 py-2 rounded-xl text-[11px] font-bold uppercase transition-all ${withdrawMethod === m ? 'bg-[#1428A0] text-white' : 'bg-white/10 text-gray-400 hover:bg-white/20'}`}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <Input
+                    placeholder="Monto a retirar (MXN)"
+                    type="number"
+                    value={withdrawAmount}
+                    onChange={e => setWithdrawAmount(e.target.value)}
+                    className="h-11 bg-black/30 border-white/10 text-white rounded-xl"
+                  />
+                  <Input
+                    placeholder={withdrawMethod === 'spei' ? 'CLABE interbancaria' : withdrawMethod === 'oxxo' ? 'Numero de telefono' : 'Email de PayPal'}
+                    value={withdrawAccount}
+                    onChange={e => setWithdrawAccount(e.target.value)}
+                    className="h-11 bg-black/30 border-white/10 text-white rounded-xl"
+                  />
+                  <Button className="w-full h-11 bg-[#1428A0] hover:bg-[#0f1f7a] rounded-xl font-bold text-sm"
+                    onClick={handleWithdraw} disabled={withdrawMutation.isPending}>
+                    {withdrawMutation.isPending ? 'Enviando...' : 'Solicitar Retiro'}
+                  </Button>
+                  <p className="text-[10px] text-gray-500 text-center">Los retiros son procesados en 1-3 dias habiles</p>
+                </CardContent>
+              </Card>
+
+              {/* Withdrawal history */}
+              <Card className="border-0 bg-white/5 backdrop-blur">
+                <CardContent className="p-5">
+                  <h3 className="font-bold text-sm mb-4 flex items-center gap-2"><Clock className="w-4 h-4 text-[#00BFFF]" /> Historial de Retiros</h3>
+                  {!(withdrawals || []).length ? (
+                    <div className="text-center py-6"><Wallet className="w-8 h-8 text-gray-600 mx-auto mb-2" /><p className="text-sm text-gray-500">Sin retiros solicitados</p></div>
+                  ) : (
+                    <div className="space-y-2">
+                      {(withdrawals || []).map((w: any) => (
+                        <div key={w.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                              w.status === 'completed' ? 'bg-emerald-900/30' : w.status === 'rejected' ? 'bg-red-900/30' : 'bg-yellow-900/30'
+                            }`}>
+                              {w.status === 'completed' ? <CheckCircle2 className="w-4 h-4 text-emerald-400" /> :
+                               w.status === 'rejected' ? <XCircle className="w-4 h-4 text-red-400" /> :
+                               <Clock className="w-4 h-4 text-yellow-400" />}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold uppercase">{w.method}</p>
+                              <p className="text-[9px] text-gray-500">{new Date(w.createdAt).toLocaleDateString('es-MX')}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-black text-white">${Number(w.amount).toLocaleString()}</p>
+                            <Badge className={`text-[9px] ${
+                              w.status === 'completed' ? 'bg-emerald-900/50 text-emerald-400' :
+                              w.status === 'rejected' ? 'bg-red-900/50 text-red-400' :
+                              'bg-yellow-900/50 text-yellow-400'
+                            }`}>{w.status === 'completed' ? 'Completado' : w.status === 'rejected' ? 'Rechazado' : 'Pendiente'}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>

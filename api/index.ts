@@ -4,6 +4,14 @@ import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
 import { createContext } from "./context";
 import { createOAuthCallbackHandler } from "./kimi/auth";
+import {
+  handleGoogleStart,
+  handleGoogleCallback,
+  handleFacebookStart,
+  handleFacebookCallback,
+  handleTwitterStart,
+  handleTwitterCallback,
+} from "./social-auth";
 import { Paths } from "@contracts/constants";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -11,7 +19,19 @@ import * as path from "node:path";
 const app = new Hono();
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+
+// Kimi OAuth
 app.get(Paths.oauthCallback, createOAuthCallbackHandler());
+
+// Social OAuth – initiation
+app.get("/api/auth/google", (c) => handleGoogleStart(c));
+app.get("/api/auth/facebook", (c) => handleFacebookStart(c));
+app.get("/api/auth/twitter", (c) => handleTwitterStart(c));
+
+// Social OAuth – callbacks
+app.get("/api/oauth/google/callback", (c) => handleGoogleCallback(c));
+app.get("/api/oauth/facebook/callback", (c) => handleFacebookCallback(c));
+app.get("/api/oauth/twitter/callback", (c) => handleTwitterCallback(c));
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",
