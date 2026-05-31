@@ -1,4 +1,3 @@
-name: Deploy to VPS
 name: Auto Deploy VPS
 
 on:
