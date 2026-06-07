@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 5%;
+    --primary: 233 79% 35%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 0 0% 0%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 46%;
+    --accent: 220 14% 96%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 233 79% 35%;
+    --radius: 0.75rem;
+    --samsung-blue: #1428A0;
+    --samsung-light-blue: #0077C8;
+    --samsung-cyan: #00BFFF;
+    --samsung-black: #050505;
+    --samsung-gray: #757575;
+    --samsung-light-gray: #F7F7F7;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1, h2, h3 {
+    @apply tracking-tighter;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.03em;
+    font-weight: 800;
+  }
+  h4, h5, h6 {
+    @apply tracking-tight;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    letter-spacing: -0.02em;
+    font-weight: 700;
+  }
+  p, span, a, li, button, input, textarea, select {
+    font-family: 'DM Sans', sans-serif;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /* Elegant text shimmer animation */
+  @keyframes textShimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+  .text-shimmer {
+    background: linear-gradient(90deg, #1428A0 0%, #00BFFF 25%, #1428A0 50%, #00BFFF 75%, #1428A0 100%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: textShimmer 4s linear infinite;
+  }
+
+  /* Glow effect for important elements */
+  .glow-text {
+    text-shadow: 0 0 20px rgba(20, 40, 160, 0.3), 0 0 40px rgba(0, 191, 255, 0.1);
+  }
+
+  /* Samsung button */
+  .samsung-btn-primary {
+    @apply bg-gradient-to-r from-[#1428A0] to-[#0077C8] text-white font-bold rounded-full hover:from-[#0f1f7a] hover:to-[#005fa0] transition-all duration-300 shadow-lg shadow-blue-900/20;
+  }
+  .samsung-btn-outline {
+    @apply border border-gray-300 text-gray-700 font-medium rounded-full hover:bg-[#1428A0] hover:text-white hover:border-[#1428A0] transition-all duration-300;
+  }
+
+  .samsung-gradient {
+    background: linear-gradient(135deg, #1428A0 0%, #0077C8 50%, #00BFFF 100%);
+  }
+  .samsung-card {
+    @apply bg-white rounded-2xl shadow-sm shadow-gray-200/40 border border-gray-100/80 overflow-hidden transition-all duration-300;
+  }
+  .samsung-card:hover {
+    @apply shadow-lg shadow-gray-200/60 border-gray-200/80;
+  }
+  .samsung-section {
+    @apply max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-12;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-[#1428A0] via-[#0077C8] to-[#00BFFF] bg-clip-text text-transparent;
+  }
+  .glass {
+    @apply bg-white/80 backdrop-blur-xl border border-white/20;
+  }
+  .glass-dark {
+    @apply bg-black/40 backdrop-blur-xl border border-white/10;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1428A0;
+  border-radius: 10px;
+}
+
+::selection {
+  background: #1428A0;
+  color: white;
+}

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.env
+.DS_Store
+*.tar.gz
+*.zip
+*.png
+*.jpg
+*.jpeg
+app/
+samsung-store-mx/
+__MACOSX/
