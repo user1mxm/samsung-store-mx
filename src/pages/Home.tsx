@@ -283,6 +283,7 @@ export default function Home() {
   const [specSheetProduct, setSpecSheetProduct] = useState<any>(null)
   const [quickViewProduct, setQuickViewProduct] = useState<any>(null)
   const searchRef = useRef<HTMLDivElement>(null)
+  const createCheckout = trpc.payment.createCheckout.useMutation()
 
   /* Persist cart */
   useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)) }, [cart])
@@ -358,6 +359,25 @@ export default function Home() {
   /* Derived values */
   const cartTotal = cart.reduce((sum, i) => sum + Number(i.product.price) * i.quantity, 0)
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0)
+
+  const startStripeCheckout = async () => {
+    if (!isAuthenticated) {
+      toast.info('Inicia sesion para completar tu compra')
+      setCheckoutOpen(false)
+      navigate('/login')
+      return
+    }
+    if (!cart.length) return
+    try {
+      const result = await createCheckout.mutateAsync({
+        items: cart.map(item => ({ productId: item.product.id, quantity: item.quantity })),
+      })
+      if (!result.url) throw new Error('Stripe no devolvio una URL de pago')
+      window.location.assign(result.url)
+    } catch (error: any) {
+      toast.error(error?.message || 'No se pudo iniciar el pago seguro')
+    }
+  }
 
   /* Filtered products */
   const filtered = useMemo(() => {
@@ -1045,7 +1065,7 @@ export default function Home() {
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Lock className="w-5 h-5" /> Finalizar Compra</DialogTitle></DialogHeader>
           <div className="mt-2">
             <div className="flex items-center justify-between mb-6 px-2">
-              {['Carrito', 'Envio', 'Pago', 'Confirmacion'].map((label, i) => (
+              {['Resumen', 'Pago seguro'].map((label, i) => (
                 <div key={label} className="flex flex-col items-center gap-1">
                   <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${i + 1 <= checkoutStep ? 'bg-[#1428A0] text-white' : 'bg-gray-200 text-gray-500'}`}>
                     {i + 1 < checkoutStep ? <Check className="w-4 h-4" /> : i + 1}
@@ -1054,7 +1074,7 @@ export default function Home() {
                 </div>
               ))}
             </div>
-            <Progress value={(checkoutStep / 4) * 100} className="mb-6 h-1" />
+            <Progress value={(checkoutStep / 2) * 100} className="mb-6 h-1" />
 
             {checkoutStep === 1 && (
               <div className="space-y-3">
@@ -1075,82 +1095,30 @@ export default function Home() {
 
             {checkoutStep === 2 && (
               <div className="space-y-3">
-                <div className="space-y-2">
-                  <Input placeholder="Nombre completo" className="h-11 rounded-xl text-sm" />
-                  <Input placeholder="Correo" type="email" className="h-11 rounded-xl text-sm" />
-                  <Input placeholder="Telefono" type="tel" className="h-11 rounded-xl text-sm" />
-                  <Input placeholder="Direccion" className="h-11 rounded-xl text-sm" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Ciudad" className="h-11 rounded-xl text-sm" />
-                    <Input placeholder="CP" className="h-11 rounded-xl text-sm" />
+                <div className="rounded-2xl border border-[#1428A0]/20 bg-[#1428A0]/5 p-5 text-center">
+                  <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#1428A0] text-white">
+                    <Lock className="h-5 w-5" />
                   </div>
+                  <p className="font-bold">Pago seguro con Stripe</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Stripe recopila de forma segura tu tarjeta, telefono y direccion de envio. Samsung Store MX no almacena los datos de tu tarjeta.
+                  </p>
+                </div>
+                {!isAuthenticated && (
+                  <p className="rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                    Necesitas iniciar sesion antes de pagar para asociar el pedido a tu cuenta.
+                  </p>
+                )}
+                <div className="flex items-center justify-between rounded-xl bg-gray-50 p-3 text-sm">
+                  <span>Total a cobrar</span>
+                  <strong className="text-[#1428A0]">${cartTotal.toLocaleString()} MXN</strong>
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" className="flex-1 h-11 rounded-full" onClick={() => setCheckoutStep(1)}>Atras</Button>
-                  <Button className="flex-1 h-11 samsung-btn-primary" onClick={() => setCheckoutStep(3)}>Continuar</Button>
+                  <Button className="flex-1 h-11 samsung-btn-primary" disabled={createCheckout.isPending} onClick={startStripeCheckout}>
+                    {createCheckout.isPending ? 'Conectando...' : `Ir a pagar`}
+                  </Button>
                 </div>
-              </div>
-            )}
-
-            {checkoutStep === 3 && (
-              <div className="space-y-3">
-                <div className="flex gap-2 mb-3">
-                  <div className="flex-1 p-3 border-2 border-[#1428A0] rounded-xl text-center">
-                    <CreditCard className="w-5 h-5 mx-auto mb-1 text-[#1428A0]" />
-                    <p className="text-[10px] font-bold">Tarjeta</p>
-                  </div>
-                  <div className="flex-1 p-3 border border-gray-200 rounded-xl text-center opacity-50">
-                    <Banknote className="w-5 h-5 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold">OXXO</p>
-                  </div>
-                  <div className="flex-1 p-3 border border-gray-200 rounded-xl text-center opacity-50">
-                    <Receipt className="w-5 h-5 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold">SPEI</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Input placeholder="Numero tarjeta" className="h-11 rounded-xl text-sm" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="MM/AA" className="h-11 rounded-xl text-sm" />
-                    <Input placeholder="CVV" className="h-11 rounded-xl text-sm" />
-                  </div>
-                  <Input placeholder="Nombre tarjeta" className="h-11 rounded-xl text-sm" />
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 h-11 rounded-full" onClick={() => setCheckoutStep(2)}>Atras</Button>
-                  <Button className="flex-1 h-11 samsung-btn-primary" onClick={() => setCheckoutStep(4)}>Pagar ${cartTotal.toLocaleString()}</Button>
-                </div>
-              </div>
-            )}
-
-            {checkoutStep === 4 && (
-              <div className="text-center space-y-4">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-8 h-8 text-green-600" />
-                  </div>
-                </motion.div>
-                <div>
-                  <p className="text-lg font-black">Pedido Confirmado!</p>
-                  <p className="text-sm text-gray-500">Orden #SAM-{Date.now().toString().slice(-6)}</p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-xl text-left">
-                  <p className="text-xs font-bold mb-2">Resumen:</p>
-                  {cart.map(item => (
-                    <div key={item.product.id} className="flex justify-between text-xs py-1">
-                      <span>{item.product.name} x{item.quantity}</span>
-                      <span>${(Number(item.product.price) * item.quantity).toLocaleString()}</span>
-                    </div>
-                  ))}
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-black text-sm">
-                    <span>Total</span>
-                    <span className="text-[#1428A0]">${cartTotal.toLocaleString()} MXN</span>
-                  </div>
-                </div>
-                <Button className="w-full h-11 samsung-btn-primary" onClick={() => { setCart([]); setCheckoutOpen(false); setCheckoutStep(1); confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } }) }}>
-                  Finalizar
-                </Button>
               </div>
             )}
           </div>

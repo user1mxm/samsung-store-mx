@@ -8,6 +8,7 @@ import { referralRouter } from "./referral-router";
 import { cartRouter } from "./cart-router";
 import { withdrawalRouter } from "./withdrawal-router";
 import { userRouter } from "./user-router";
+import { paymentRouter } from "./payment-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
@@ -22,6 +23,7 @@ export const appRouter = createRouter({
   cart: cartRouter,
   withdrawal: withdrawalRouter,
   user: userRouter,
+  payment: paymentRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -9,6 +9,8 @@ import AgentDashboard from './pages/AgentDashboard'
 import NetworkPage from './pages/NetworkPage'
 import OrderHistory from './pages/OrderHistory'
 import NotFound from './pages/NotFound'
+import CheckoutSuccess from './pages/CheckoutSuccess'
+import CheckoutCancel from './pages/CheckoutCancel'
 
 export default function App() {
   const { user, isLoading } = useAuth()
@@ -29,6 +31,8 @@ export default function App() {
       <Route path="/change-password" element={<ChangePassword />} />
       <Route path="/mi-red" element={<NetworkPage />} />
       <Route path="/mis-pedidos" element={<OrderHistory />} />
+      <Route path="/checkout/success" element={<CheckoutSuccess />} />
+      <Route path="/checkout/cancel" element={<CheckoutCancel />} />
       <Route
         path="/admin"
         element={
