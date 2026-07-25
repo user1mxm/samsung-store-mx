@@ -148,43 +148,7 @@ export async function handleGoogleCallback(c: Context) {
     });
 
     const { userId, isNew, name: uName, email: uEmail } = result;
-    const { userId, isNew, name: uName, email: uEmail } = result;
-    const { userId, isNew, name: uName, email: uEmail } = result;
     await issueSession(c, userId);
-    if (isNew) {
-      const _role = (decoded.role === "agent" ? "agent" : "client") as string;
-      setImmediate(async () => {
-        try {
-          const { getDb: _db2 } = await import("./queries/connection");
-          const { referrals: _refs } = await import("../db/schema");
-          const { eq: _eq2 } = await import("drizzle-orm");
-          if (_role === "agent") {
-            const ref = await _db2().select().from(_refs).where(_eq2(_refs.userId, userId)).limit(1);
-            await sendWelcomeAgent(uEmail, uName, ref[0]?.referralCode ?? "");
-          } else {
-            await sendWelcomeClient(uEmail, uName);
-          }
-          await notifyAdminNewUser({ name: uName, email: uEmail, role: _role, provider: "OAuth" });
-        } catch(e:any) { console.error("[social notif]", e.message); }
-      });
-    }
-    if (isNew) {
-      const _role = (decoded.role === "agent" ? "agent" : "client") as string;
-      setImmediate(async () => {
-        try {
-          const { getDb: _db2 } = await import("./queries/connection");
-          const { referrals: _refs } = await import("../db/schema");
-          const { eq: _eq2 } = await import("drizzle-orm");
-          if (_role === "agent") {
-            const ref = await _db2().select().from(_refs).where(_eq2(_refs.userId, userId)).limit(1);
-            await sendWelcomeAgent(uEmail, uName, ref[0]?.referralCode ?? "");
-          } else {
-            await sendWelcomeClient(uEmail, uName);
-          }
-          await notifyAdminNewUser({ name: uName, email: uEmail, role: _role, provider: "OAuth" });
-        } catch(e:any) { console.error("[social notif]", e.message); }
-      });
-    }
     if (isNew) {
       const _role = (decoded.role === "agent" ? "agent" : "client") as string;
       setImmediate(async () => {
@@ -273,6 +237,7 @@ export async function handleFacebookCallback(c: Context) {
       role,
     });
 
+    const { userId } = result;
     await issueSession(c, userId);
     return c.redirect("/", 302);
   } catch (err) {
@@ -380,6 +345,7 @@ export async function handleTwitterCallback(c: Context) {
       role,
     });
 
+    const { userId } = result;
     await issueSession(c, userId);
     return c.redirect("/", 302);
   } catch (err) {

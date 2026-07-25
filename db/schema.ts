@@ -71,6 +71,9 @@ export const orders = mysqlTable("orders", {
   agentId: bigint("agentId", { mode: "number", unsigned: true }),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   status: mysqlEnum("status", ["pending", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
+  paymentStatus: mysqlEnum("paymentStatus", ["unpaid", "paid", "failed", "refunded"]).default("unpaid").notNull(),
+  stripeCheckoutSessionId: varchar("stripeCheckoutSessionId", { length: 255 }).unique(),
+  stripePaymentIntentId: varchar("stripePaymentIntentId", { length: 255 }),
   shippingAddress: text("shippingAddress"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });

@@ -68,6 +68,37 @@ Si usas la base de datos MySQL, configura estas variables en Vercel Dashboard:
 - `OAUTH_CLIENT_ID` — ID de cliente OAuth
 - `OAUTH_CLIENT_SECRET` — Secreto de cliente OAuth
 
+### 4. Stripe Checkout (requerido para cobrar)
+
+Configura en Vercel, usando primero claves de prueba:
+
+- `APP_URL` — URL pública exacta, sin `/` final
+- `STRIPE_SECRET_KEY` — `sk_test_...` durante verificación
+- `STRIPE_WEBHOOK_SECRET` — `whsec_...`
+
+En Stripe Workbench crea un webhook dirigido a:
+
+```text
+https://TU-DOMINIO/api/stripe-webhook
+```
+
+Suscribe estos eventos:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+- `charge.refunded`
+
+Aplica la migración antes de habilitar el checkout:
+
+```bash
+npm run db:migrate
+```
+
+Prueba el flujo completo en modo test. Confirma que el webhook cambia
+`paymentStatus` de `unpaid` a `paid` y el pedido de `pending` a `processing`
+antes de sustituir las claves `sk_test_...` por claves live.
+
 ---
 
 ## Estructura del Proyecto
