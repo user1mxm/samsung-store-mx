@@ -17,14 +17,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-test:
-    name: Test and build (Node 20)
+  verify:
+    name: Tests, build and TypeScript (Node 20)
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: npm
@@ -36,5 +35,18 @@ jobs:
         run: npm run build
       - name: Type-check
         run: npm run check
-      - name: Lint
+
+  lint:
+    name: Existing ESLint debt (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install reproducibly
+        run: npm ci
+      - name: Lint all source files
         run: npm run lint
