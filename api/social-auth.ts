@@ -148,8 +148,6 @@ export async function handleGoogleCallback(c: Context) {
     });
 
     const { userId, isNew, name: uName, email: uEmail } = result;
-    const { userId, isNew, name: uName, email: uEmail } = result;
-    const { userId, isNew, name: uName, email: uEmail } = result;
     await issueSession(c, userId);
     if (isNew) {
       const _role = (decoded.role === "agent" ? "agent" : "client") as string;
