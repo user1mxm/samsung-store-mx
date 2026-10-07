@@ -131,7 +131,7 @@ function SubAgentRow({ agent, onSetRate, saving }:any) {
 
 /* ─── Referral code card ─── */
 function ReferralCard({ code }:{ code:string|null }) {
-  const copy = () => { navigator.clipboard.writeText(code??""||""); toast.success("Código copiado"); };
+  const copy = () => { navigator.clipboard.writeText(code ?? ""); toast.success("Código copiado"); };
   const url  = `${window.location.origin}/login?ref=${code}`;
 
   if(!code) return (
