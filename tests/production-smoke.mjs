@@ -1,0 +1,68 @@
+import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { createServer } from 'node:net';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
+
+// Run the bundle outside the project directory to exercise absolute static paths.
+const cwd = await mkdtemp(join(tmpdir(), 'storefront-smoke-'));
+const listener = createServer();
+listener.listen(0, '127.0.0.1');
+await once(listener, 'listening');
+const port = listener.address().port;
+await new Promise(resolve => listener.close(resolve));
+const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/boot.js', import.meta.url))], {
+  cwd,
+  env: {
+    ...process.env, NODE_ENV: 'production', PORT: String(port),
+    APP_ID: 'smoke-test', APP_SECRET: 'test-only-not-a-real-credential',
+    DATABASE_URL: 'mysql://test:test@127.0.0.1:1/test',
+    KIMI_AUTH_URL: 'https://example.invalid', KIMI_OPEN_URL: 'https://example.invalid',
+  },
+  stdio: ['ignore', 'pipe', 'pipe'],
+});
+let output = '';
+child.stdout.on('data', data => { output += data; });
+child.stderr.on('data', data => { output += data; });
+const origin = `http://127.0.0.1:${port}`;
+try {
+  let ready = false;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    if (child.exitCode !== null) throw new Error(`Server exited: ${output}`);
+    try {
+      const response = await fetch(origin, { signal: AbortSignal.timeout(1000) });
+      if (response.ok) { ready = true; break; }
+    } catch { /* Startup is asynchronous. */ }
+    await delay(100);
+  }
+  assert.ok(ready, `Server did not become ready: ${output}`);
+  const root = await fetch(origin);
+  const html = await root.text();
+  assert.equal(root.status, 200);
+  assert.match(html, /id="root"/);
+  const login = await fetch(`${origin}/login`, { headers: { accept: 'text/html' } });
+  assert.equal(login.status, 200);
+  assert.equal(await login.text(), html);
+  const asset = html.match(/src="(\/assets\/[^\"]+\.js)"/)?.[1];
+  assert.ok(asset, 'Built entry script missing');
+  const js = await fetch(origin + asset);
+  assert.equal(js.status, 200);
+  assert.match(js.headers.get('content-type'), /javascript/);
+  assert.equal((await fetch(`${origin}/api/not-a-route`)).status, 404);
+  assert.equal((await fetch(`${origin}/assets/not-a-file.js`)).status, 404);
+  const ping = await fetch(`${origin}/api/trpc/ping`);
+  assert.equal(ping.status, 200);
+  assert.equal((await ping.json()).result.data.json.ok, true);
+  console.log('Production smoke passed: root, SPA route, JS asset, missing routes and API ping.');
+} finally {
+  if (child.exitCode === null) {
+    const exited = once(child, 'exit');
+    child.kill('SIGTERM');
+    await exited;
+  }
+  await rm(cwd, { recursive: true, force: true });
+}
