@@ -1,0 +1,52 @@
+name: SamsungStore checks
+
+on:
+  pull_request:
+    branches:
+      - samsung-store-mx
+      - agent/stripe-checkout-release
+  push:
+    branches:
+      - samsung-store-mx
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storefront-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Tests, build and TypeScript (Node 20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install reproducibly
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build frontend and VPS backend
+        run: npm run build
+      - name: Type-check
+        run: npm run check
+
+  lint:
+    name: Existing ESLint debt (blocking)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install reproducibly
+        run: npm ci
+      - name: Lint all source files
+        run: npm run lint

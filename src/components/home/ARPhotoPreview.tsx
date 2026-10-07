@@ -39,7 +39,7 @@ function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: n
   }
 }
 
-export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName = 'Samsung TV', darkMode = false }: ARPhotoPreviewProps) {
+export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName = 'Samsung TV' }: ARPhotoPreviewProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [hasPermission, setHasPermission] = useState<boolean | null>(null)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)

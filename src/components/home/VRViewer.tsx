@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion } from 'framer-motion'
-import { RotateCcw, Eye, ZoomIn, Maximize2, Rotate3D } from 'lucide-react'
+import { RotateCcw, Eye, ZoomIn, Maximize2 } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════
    Samsung S95D OLED — Photorealistic 3D Viewer v2

@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════════════ */
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, X, Send, Bot, User, Minus, Sparkles, Clock, CheckCheck, Headphones } from 'lucide-react'
+import { MessageCircle, X, Send, User, Minus, Sparkles, CheckCheck, Headphones } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface Message {
