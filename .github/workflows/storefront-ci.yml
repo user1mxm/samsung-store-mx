@@ -1,0 +1,40 @@
+name: SamsungStore checks
+
+on:
+  pull_request:
+    branches:
+      - samsung-store-mx
+      - agent/stripe-checkout-release
+  push:
+    branches:
+      - samsung-store-mx
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storefront-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: Test and build (Node 20)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Install reproducibly
+        run: npm ci
+      - name: Run tests
+        run: npm test
+      - name: Build frontend and VPS backend
+        run: npm run build
+      - name: Type-check
+        run: npm run check
+      - name: Lint
+        run: npm run lint
