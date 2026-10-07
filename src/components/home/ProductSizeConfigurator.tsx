@@ -5,7 +5,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Ruler, X, Sofa, Info, Maximize2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 
 interface TVSize {
   name: string
