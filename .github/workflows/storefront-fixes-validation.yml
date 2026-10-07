@@ -1,0 +1,17 @@
+name: Storefront fixes validation
+on:
+  pull_request:
+  push:
+    branches: [fix/storefront-checkout-stock-20261007]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: node --test tests/cart-safety.test.mjs
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build

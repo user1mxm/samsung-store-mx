@@ -19,11 +19,12 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { trpc } from '@/providers/trpc'
 import { useAuth } from '@/hooks/useAuth'
+import { stockLimit, clampQuantity, restoreCart, reconcileCart, catalogPriceCeiling } from '@/lib/cart-safety.mjs'
 import { useNavigate } from 'react-router'
 import {
-  ShoppingCart, Brain, X, Plus, Minus, Sparkles, ArrowRight, Check, CheckCircle2,
+  ShoppingCart, Brain, X, Plus, Minus, Sparkles, ArrowRight, Check,
   Heart, Star, Search, Eye, Copy, Share2, Flame,
-  RotateCcw, Box, Lock, ZoomIn, Banknote, Receipt, CreditCard, TrendingUp,
+  RotateCcw, Box, Lock, ZoomIn, CreditCard, TrendingUp,
   Zap, Shield, Clock, Award,
   Menu, Moon, Sun, Filter, SortAsc, Truck, BadgeCheck,
   MapPin, Phone, Mail, ExternalLink, Globe, ArrowUpRight,
@@ -247,7 +248,7 @@ export default function Home() {
   })
 
   /* Data queries */
-  const { data: products, isLoading: productsLoading } = trpc.product.list.useQuery({ category: 'all' })
+  const { data: products, isLoading: productsLoading, isError: productsError, refetch: refetchProducts } = trpc.product.list.useQuery({ category: 'all' })
   const { data: categories } = trpc.product.categories.useQuery()
   const { data: reviews } = trpc.review.list.useQuery()
 
@@ -256,9 +257,10 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('')
   const [voiceSearchResult, setVoiceSearchResult] = useState('')
   const [sortBy, setSortBy] = useState('newest')
-  const [priceRange, setPriceRange] = useState([0, 120000])
+  const [maxPrice, setMaxPrice] = useState<number | null>(null)
+  const priceCeiling = catalogPriceCeiling(products || [])
   const [cart, setCart] = useState<CartItem[]>(() => {
-    try { return JSON.parse(localStorage.getItem('cart') || '[]') } catch { return [] }
+    try { return restoreCart(localStorage.getItem('cart')) } catch { return [] }
   })
   const [wishlist, setWishlist] = useState<number[]>(() => {
     try { return JSON.parse(localStorage.getItem('wishlist') || '[]') } catch { return [] }
@@ -273,7 +275,6 @@ export default function Home() {
   const [viewProduct, setViewProduct] = useState<any>(null)
   const [compareOpen, setCompareOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
-  const [checkoutStep, setCheckoutStep] = useState(1)
   const [aiProduct, setAiProduct] = useState<any>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -285,9 +286,12 @@ export default function Home() {
   const searchRef = useRef<HTMLDivElement>(null)
 
   /* Persist cart */
-  useEffect(() => { localStorage.setItem('cart', JSON.stringify(cart)) }, [cart])
-  useEffect(() => { localStorage.setItem('wishlist', JSON.stringify(wishlist)) }, [wishlist])
-  useEffect(() => { localStorage.setItem('compare', JSON.stringify(compareList)) }, [compareList])
+  useEffect(() => { try { localStorage.setItem('cart', JSON.stringify(cart)) } catch { /* Storage may be unavailable. */ } }, [cart])
+  useEffect(() => {
+    if (products) setCart(prev => reconcileCart(prev, products))
+  }, [products])
+  useEffect(() => { try { localStorage.setItem('wishlist', JSON.stringify(wishlist)) } catch { /* Storage may be unavailable. */ } }, [wishlist])
+  useEffect(() => { try { localStorage.setItem('compare', JSON.stringify(compareList)) } catch { /* Storage may be unavailable. */ } }, [compareList])
 
   /* Search suggestions */
   useEffect(() => {
@@ -316,10 +320,11 @@ export default function Home() {
 
   /* Cart actions */
   const addToCart = useCallback((product: any) => {
+    if (!stockLimit(product)) { toast.error('Producto sin existencias'); return }
     setCart(prev => {
       const existing = prev.find(i => i.product.id === product.id)
       if (existing) {
-        return prev.map(i => i.product.id === product.id ? { ...i, quantity: i.quantity + 1 } : i)
+        return prev.map(i => i.product.id === product.id ? { ...i, product, quantity: clampQuantity(product, i.quantity + 1) } : i)
       }
       return [...prev, { product, quantity: 1 }]
     })
@@ -333,7 +338,7 @@ export default function Home() {
 
   const updateQty = useCallback((productId: number, qty: number) => {
     if (qty <= 0) { removeFromCart(productId); return }
-    setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: qty } : i))
+    setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: clampQuantity(i.product, qty) } : i).filter(i => i.quantity > 0))
   }, [removeFromCart])
 
   /* Wishlist */
@@ -366,7 +371,7 @@ export default function Home() {
       if (selectedCategory !== 'all' && p.category !== selectedCategory) return false
       if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false
       const price = Number(p.price)
-      if (price < priceRange[0] || price > priceRange[1]) return false
+      if (maxPrice !== null && price > maxPrice) return false
       return true
     })
     switch (sortBy) {
@@ -376,7 +381,7 @@ export default function Home() {
       default: break
     }
     return list
-  }, [products, selectedCategory, searchQuery, voiceSearchResult, priceRange, sortBy])
+  }, [products, selectedCategory, searchQuery, voiceSearchResult, maxPrice, sortBy])
 
   const compareProducts = useMemo(() => (products || []).filter((p: any) => compareList.includes(p.id)), [products, compareList])
 
@@ -614,10 +619,10 @@ export default function Home() {
                 <div className={`p-4 rounded-2xl border max-w-md mx-auto ${darkMode ? 'bg-[#1a1a2a] border-gray-700' : 'bg-gray-50 border-gray-100'}`}>
                   <p className="text-[11px] font-bold mb-3 text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rango de Precio</p>
                   <div className="flex items-center gap-3">
-                    <input type="range" min={0} max={120000} step={1000} value={priceRange[1]}
-                      onChange={(e) => setPriceRange([0, Number(e.target.value)])}
+                    <input type="range" min={0} max={priceCeiling} step={1000} value={maxPrice ?? priceCeiling}
+                      onChange={(e) => setMaxPrice(Number(e.target.value))}
                       className="flex-1 h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#1428A0]" />
-                    <span className="text-xs font-bold text-[#1428A0] w-24 text-right">Hasta ${priceRange[1].toLocaleString()}</span>
+                    <span className="text-xs font-bold text-[#1428A0] w-24 text-right">Hasta ${(maxPrice ?? priceCeiling).toLocaleString()}</span>
                   </div>
                 </div>
               </motion.div>
@@ -625,6 +630,12 @@ export default function Home() {
           </AnimatePresence>
 
           {/* Swipe Catalog */}
+          {productsError && (
+            <div role="alert" className="text-center py-6 space-y-2">
+              <p>No pudimos cargar el catálogo. Intenta nuevamente.</p>
+              <Button variant="outline" onClick={() => void refetchProducts()}>Reintentar</Button>
+            </div>
+          )}
           <SwipeCatalogSection
             products={filtered}
             loading={productsLoading}
@@ -879,7 +890,7 @@ export default function Home() {
                     <div className="flex items-center gap-1">
                       <button onClick={() => updateQty(item.product.id, item.quantity - 1)} className="w-7 h-7 rounded-full bg-white dark:bg-gray-700 border flex items-center justify-center"><Minus className="w-3 h-3" /></button>
                       <span className="w-6 text-center text-sm font-medium">{item.quantity}</span>
-                      <button onClick={() => updateQty(item.product.id, item.quantity + 1)} className="w-7 h-7 rounded-full bg-white dark:bg-gray-700 border flex items-center justify-center"><Plus className="w-3 h-3" /></button>
+                      <button aria-label="Aumentar cantidad" disabled={item.quantity >= stockLimit(item.product)} onClick={() => updateQty(item.product.id, item.quantity + 1)} className="w-7 h-7 rounded-full bg-white dark:bg-gray-700 border flex items-center justify-center"><Plus className="w-3 h-3" /></button>
                     </div>
                     <button onClick={() => removeFromCart(item.product.id)} className="w-7 h-7 rounded-full hover:bg-red-50 flex items-center justify-center text-red-400"><X className="w-3.5 h-3.5" /></button>
                   </div>
@@ -887,7 +898,7 @@ export default function Home() {
                 <Separator />
                 <div className="flex justify-between items-center py-2"><span className="font-bold text-sm">Subtotal:</span><span className="font-black text-xl text-[#1428A0]">${cartTotal.toLocaleString()} MXN</span></div>
                 <div className="flex items-center gap-2 text-xs text-gray-500 mb-2"><Truck className="w-3 h-3" />{cartTotal >= 5000 ? 'Envio gratis!' : `Te faltan $${(5000 - cartTotal).toLocaleString()}`}</div>
-                <Button className="w-full h-12 samsung-btn-primary text-sm" onClick={() => { setCartOpen(false); setCheckoutOpen(true); setCheckoutStep(1) }}>Proceder al Pago <ArrowRight className="w-4 h-4 ml-2" /></Button>
+                <Button className="w-full h-12 samsung-btn-primary text-sm" onClick={() => { setCartOpen(false); setCheckoutOpen(true) }}>Ver resumen <ArrowRight className="w-4 h-4 ml-2" /></Button>
               </>
             )}
           </div>
@@ -1039,120 +1050,23 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* Checkout */}
+      {/* Checkout stays unavailable until a real payment and order flow is wired. */}
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="flex items-center gap-2"><Lock className="w-5 h-5" /> Finalizar Compra</DialogTitle></DialogHeader>
-          <div className="mt-2">
-            <div className="flex items-center justify-between mb-6 px-2">
-              {['Carrito', 'Envio', 'Pago', 'Confirmacion'].map((label, i) => (
-                <div key={label} className="flex flex-col items-center gap-1">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${i + 1 <= checkoutStep ? 'bg-[#1428A0] text-white' : 'bg-gray-200 text-gray-500'}`}>
-                    {i + 1 < checkoutStep ? <Check className="w-4 h-4" /> : i + 1}
-                  </div>
-                  <span className={`text-[9px] font-medium ${i + 1 <= checkoutStep ? 'text-[#1428A0]' : 'text-gray-400'}`}>{label}</span>
+          <DialogHeader><DialogTitle className="flex items-center gap-2"><Lock className="w-5 h-5" /> Resumen de compra</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <div className="p-3 bg-gray-50 rounded-xl">
+              {cart.map(item => (
+                <div key={item.product.id} className="flex justify-between text-xs py-1">
+                  <span>{item.product.name} x{item.quantity}</span>
+                  <span>${(Number(item.product.price) * item.quantity).toLocaleString('es-MX')}</span>
                 </div>
               ))}
+              <Separator className="my-2" />
+              <div className="flex justify-between font-black text-sm"><span>Subtotal</span><span>${cartTotal.toLocaleString('es-MX')} MXN</span></div>
             </div>
-            <Progress value={(checkoutStep / 4) * 100} className="mb-6 h-1" />
-
-            {checkoutStep === 1 && (
-              <div className="space-y-3">
-                <div className="p-3 bg-gray-50 rounded-xl">
-                  <p className="text-xs font-bold mb-2">Resumen</p>
-                  {cart.map(item => (
-                    <div key={item.product.id} className="flex justify-between text-xs py-1">
-                      <span>{item.product.name} x{item.quantity}</span>
-                      <span>${(Number(item.product.price) * item.quantity).toLocaleString()}</span>
-                    </div>
-                  ))}
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-black text-sm"><span>Total</span><span>${cartTotal.toLocaleString()} MXN</span></div>
-                </div>
-                <Button className="w-full h-11 samsung-btn-primary" onClick={() => setCheckoutStep(2)}>Continuar <ArrowRight className="w-4 h-4 ml-2" /></Button>
-              </div>
-            )}
-
-            {checkoutStep === 2 && (
-              <div className="space-y-3">
-                <div className="space-y-2">
-                  <Input placeholder="Nombre completo" className="h-11 rounded-xl text-sm" />
-                  <Input placeholder="Correo" type="email" className="h-11 rounded-xl text-sm" />
-                  <Input placeholder="Telefono" type="tel" className="h-11 rounded-xl text-sm" />
-                  <Input placeholder="Direccion" className="h-11 rounded-xl text-sm" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="Ciudad" className="h-11 rounded-xl text-sm" />
-                    <Input placeholder="CP" className="h-11 rounded-xl text-sm" />
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 h-11 rounded-full" onClick={() => setCheckoutStep(1)}>Atras</Button>
-                  <Button className="flex-1 h-11 samsung-btn-primary" onClick={() => setCheckoutStep(3)}>Continuar</Button>
-                </div>
-              </div>
-            )}
-
-            {checkoutStep === 3 && (
-              <div className="space-y-3">
-                <div className="flex gap-2 mb-3">
-                  <div className="flex-1 p-3 border-2 border-[#1428A0] rounded-xl text-center">
-                    <CreditCard className="w-5 h-5 mx-auto mb-1 text-[#1428A0]" />
-                    <p className="text-[10px] font-bold">Tarjeta</p>
-                  </div>
-                  <div className="flex-1 p-3 border border-gray-200 rounded-xl text-center opacity-50">
-                    <Banknote className="w-5 h-5 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold">OXXO</p>
-                  </div>
-                  <div className="flex-1 p-3 border border-gray-200 rounded-xl text-center opacity-50">
-                    <Receipt className="w-5 h-5 mx-auto mb-1" />
-                    <p className="text-[10px] font-bold">SPEI</p>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Input placeholder="Numero tarjeta" className="h-11 rounded-xl text-sm" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <Input placeholder="MM/AA" className="h-11 rounded-xl text-sm" />
-                    <Input placeholder="CVV" className="h-11 rounded-xl text-sm" />
-                  </div>
-                  <Input placeholder="Nombre tarjeta" className="h-11 rounded-xl text-sm" />
-                </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1 h-11 rounded-full" onClick={() => setCheckoutStep(2)}>Atras</Button>
-                  <Button className="flex-1 h-11 samsung-btn-primary" onClick={() => setCheckoutStep(4)}>Pagar ${cartTotal.toLocaleString()}</Button>
-                </div>
-              </div>
-            )}
-
-            {checkoutStep === 4 && (
-              <div className="text-center space-y-4">
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 200 }}>
-                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-8 h-8 text-green-600" />
-                  </div>
-                </motion.div>
-                <div>
-                  <p className="text-lg font-black">Pedido Confirmado!</p>
-                  <p className="text-sm text-gray-500">Orden #SAM-{Date.now().toString().slice(-6)}</p>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-xl text-left">
-                  <p className="text-xs font-bold mb-2">Resumen:</p>
-                  {cart.map(item => (
-                    <div key={item.product.id} className="flex justify-between text-xs py-1">
-                      <span>{item.product.name} x{item.quantity}</span>
-                      <span>${(Number(item.product.price) * item.quantity).toLocaleString()}</span>
-                    </div>
-                  ))}
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-black text-sm">
-                    <span>Total</span>
-                    <span className="text-[#1428A0]">${cartTotal.toLocaleString()} MXN</span>
-                  </div>
-                </div>
-                <Button className="w-full h-11 samsung-btn-primary" onClick={() => { setCart([]); setCheckoutOpen(false); setCheckoutStep(1); confetti({ particleCount: 60, spread: 70, origin: { y: 0.6 } }) }}>
-                  Finalizar
-                </Button>
-              </div>
-            )}
+            <p role="status" className="text-sm text-gray-600">El pago en línea todavía no está disponible. Tu carrito se conserva; no se ha realizado ningún cobro ni creado un pedido.</p>
+            <Button className="w-full h-11 samsung-btn-primary" onClick={() => setCheckoutOpen(false)}>Volver al catálogo</Button>
           </div>
         </DialogContent>
       </Dialog>
