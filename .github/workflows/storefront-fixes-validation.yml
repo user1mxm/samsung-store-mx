@@ -15,3 +15,4 @@ jobs:
       - run: node --test tests/cart-safety.test.mjs
       - run: npm ci --no-audit --no-fund
       - run: npm run build
+      - run: node tests/production-smoke.mjs
