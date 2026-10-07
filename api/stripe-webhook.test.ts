@@ -1,6 +1,13 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import Stripe from "stripe";
-import app from "./boot";
+let app: typeof import("./boot").default;
+
+beforeAll(async () => {
+  // The legacy OAuth module constructs a JWKS URL at import time.
+  // Use a syntactically valid offline URL; no network requests are made.
+  process.env.KIMI_AUTH_URL = "https://example.invalid";
+  app = (await import("./boot")).default;
+});
 
 const secret = "whsec_local_webhook_test";
 const stripe = new Stripe("sk_test_local_webhook_test");
