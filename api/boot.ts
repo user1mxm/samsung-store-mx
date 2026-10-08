@@ -7,6 +7,7 @@ import { createContext } from "./context";
 import { env } from "./lib/env";
 import { createOAuthCallbackHandler } from "./kimi/auth";
 import { Paths } from "@contracts/constants";
+import { registerPaymentWebhooks } from "./payments/webhooks";
 import {
   handleGoogleStart, handleGoogleCallback,
   handleFacebookStart, handleFacebookCallback,
@@ -16,6 +17,7 @@ import {
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+registerPaymentWebhooks(app);
 
 // Kimi OAuth (legacy)
 app.get(Paths.oauthCallback, createOAuthCallbackHandler());

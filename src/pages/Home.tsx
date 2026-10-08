@@ -275,6 +275,57 @@ export default function Home() {
   const [viewProduct, setViewProduct] = useState<any>(null)
   const [compareOpen, setCompareOpen] = useState(false)
   const [checkoutOpen, setCheckoutOpen] = useState(false)
+  const [shipping, setShipping] = useState({ name: '', email: '', phone: '', address: '', city: '', postalCode: '' })
+  const [paymentProvider, setPaymentProvider] = useState('mercadopago')
+  const [checkoutReference, setCheckoutReference] = useState<string | undefined>(() => {
+    try {
+      const value = localStorage.getItem('checkout-reference')
+      return /^[a-f0-9-]{36}$/i.test(value || '') ? value! : undefined
+    } catch { return undefined }
+  })
+  const { data: paymentProviders = [] } = trpc.order.paymentProviders.useQuery()
+  const checkoutMutation = trpc.order.checkout.useMutation()
+  const { data: paymentState, refetch: refreshPayment } = trpc.order.checkoutStatus.useQuery(
+    { reference: checkoutReference },
+    { enabled: isAuthenticated && paymentProviders.length > 0, retry: false, refetchInterval: checkoutOpen ? 5000 : false },
+  )
+  useEffect(() => {
+    if (paymentState?.state === 'paid') {
+      try { localStorage.removeItem(`checkout-request-${user?.id}`) } catch { /* Storage may be unavailable. */ }
+    }
+  }, [paymentState?.state, user?.id])
+
+  const beginPayment = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!isAuthenticated) { navigate('/login'); return }
+    if (!cart.length || checkoutMutation.isPending) return
+    const provider = paymentProviders.includes(paymentProvider) ? paymentProvider : paymentProviders[0]
+    if (!provider) return
+    const payload = { provider, shippingAddress: shipping, items: cart.map(item => ({ productId: item.product.id, quantity: item.quantity })).sort((a, b) => a.productId - b.productId) }
+    try {
+      const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)))
+      const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+      const storageKey = `checkout-request-${user.id}`
+      const stored = JSON.parse(localStorage.getItem(storageKey) || 'null')
+      if (stored && stored.hash !== hash) throw new Error('Ya existe un intento pendiente. Retoma ese pago antes de iniciar otro.')
+      const requestKey = stored?.key || crypto.randomUUID()
+      localStorage.setItem(storageKey, JSON.stringify({ key: requestKey, hash }))
+      const result = await checkoutMutation.mutateAsync({ ...payload, requestKey })
+      setCheckoutReference(result.reference)
+      localStorage.setItem('checkout-reference', result.reference)
+      if (result.state === 'paid') { await refreshPayment(); return }
+      if (result.url) window.location.assign(result.url)
+    } catch (error) {
+      // Validation failures create no remote checkout; allow the user to correct them.
+      if (['BAD_REQUEST', 'NOT_FOUND', 'PRECONDITION_FAILED', 'UNAUTHORIZED'].includes(error?.data?.code)
+          || error?.message === 'Insufficient stock') {
+        try { localStorage.removeItem(`checkout-request-${user?.id}`) } catch { /* Storage may be unavailable. */ }
+      }
+      toast.error(error instanceof Error ? error.message : 'No pudimos iniciar el pago. Tu carrito se conserva.')
+      await refreshPayment()
+    }
+  }
+
   const [aiProduct, setAiProduct] = useState<any>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
@@ -1050,7 +1101,7 @@ export default function Home() {
         </DialogContent>
       </Dialog>
 
-      {/* Checkout stays unavailable until a real payment and order flow is wired. */}
+      {/* Hosted providers are exposed only when server configuration and schema are ready. */}
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="flex items-center gap-2"><Lock className="w-5 h-5" /> Resumen de compra</DialogTitle></DialogHeader>
@@ -1065,7 +1116,51 @@ export default function Home() {
               <Separator className="my-2" />
               <div className="flex justify-between font-black text-sm"><span>Subtotal</span><span>${cartTotal.toLocaleString('es-MX')} MXN</span></div>
             </div>
-            <p role="status" className="text-sm text-gray-600">El pago en línea todavía no está disponible. Tu carrito se conserva; no se ha realizado ningún cobro ni creado un pedido.</p>
+            {!paymentProviders.length ? (
+              <p role="status" className="text-sm text-gray-600">El pago en línea todavía no está disponible. Tu carrito se conserva; no se ha realizado ningún cobro ni creado un pedido.</p>
+            ) : !isAuthenticated ? (
+              <Button className="w-full" onClick={() => navigate('/login')}>Inicia sesión para pagar</Button>
+            ) : paymentState ? (
+              <div className="space-y-3">
+                <p role="status" className="text-sm">{paymentState.state === 'paid'
+                  ? `Pago verificado. Pedido #${paymentState.orderId}.`
+                  : paymentState.state === 'pending'
+                    ? `Pedido #${paymentState.orderId}: pago pendiente de confirmación.`
+                    : `Pedido #${paymentState.orderId}: el intento de pago requiere revisión. No inicies otro pago.`}</p>
+                {paymentState.state === 'pending' && paymentState.url && <Button className="w-full" onClick={() => window.location.assign(paymentState.url)}>Retomar pago</Button>}
+                <Button variant="outline" onClick={() => void refreshPayment()}>Actualizar estado</Button>
+                {paymentState.state === 'paid' && <Button variant="outline" onClick={() => {
+                  setCheckoutReference(undefined)
+                  try { localStorage.removeItem('checkout-reference') } catch { /* Storage may be unavailable. */ }
+                }}>Preparar otra compra</Button>}
+              </div>
+            ) : (
+              <form onSubmit={beginPayment} className="space-y-3">
+                <fieldset className="space-y-2" disabled={checkoutMutation.isPending}>
+                  <legend className="text-sm font-bold mb-2">Datos de envío</legend>
+                  {[
+                    ['name', 'Nombre completo', 'text', 'name'], ['email', 'Correo', 'email', 'email'],
+                    ['phone', 'Teléfono', 'tel', 'tel'], ['address', 'Dirección', 'text', 'street-address'],
+                    ['city', 'Ciudad', 'text', 'address-level2'], ['postalCode', 'Código postal', 'text', 'postal-code'],
+                  ].map(([key, label, type, autoComplete]) => (
+                    <label key={key} className="block text-xs">{label}
+                      <Input type={type} autoComplete={autoComplete} required value={shipping[key]}
+                        minLength={key === 'address' ? 5 : key === 'name' || key === 'city' ? 2 : undefined}
+                        maxLength={key === 'postalCode' ? 5 : key === 'phone' ? 20 : 300}
+                        pattern={key === 'postalCode' ? '[0-9]{5}' : key === 'phone' ? '[+0-9 ()-]{10,20}' : undefined}
+                        onChange={event => setShipping(previous => ({ ...previous, [key]: event.target.value }))} />
+                    </label>
+                  ))}
+                  <label className="block text-xs">Proveedor de pago
+                    <select className="w-full border rounded-md p-2" value={paymentProviders.includes(paymentProvider) ? paymentProvider : paymentProviders[0]} onChange={event => setPaymentProvider(event.target.value)}>
+                      {paymentProviders.map(provider => <option key={provider} value={provider}>{provider === 'stripe' ? 'Stripe' : 'Mercado Pago'}</option>)}
+                    </select>
+                  </label>
+                  <p className="text-xs text-gray-500">El precio final se valida al iniciar el pago. Completarás el pago en el sitio del proveedor.</p>
+                  <Button type="submit" className="w-full" disabled={!cart.length}>{checkoutMutation.isPending ? 'Preparando pago…' : 'Continuar al pago seguro'}</Button>
+                </fieldset>
+              </form>
+            )}
             <Button className="w-full h-11 samsung-btn-primary" onClick={() => setCheckoutOpen(false)}>Volver al catálogo</Button>
           </div>
         </DialogContent>

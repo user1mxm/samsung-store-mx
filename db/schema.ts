@@ -8,6 +8,9 @@ import {
   int,
   decimal,
   bigint,
+  json,
+  uniqueIndex,
+  primaryKey,
   boolean,
 } from "drizzle-orm/mysql-core";
 
@@ -72,6 +75,7 @@ export const orders = mysqlTable("orders", {
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   status: mysqlEnum("status", ["pending", "processing", "shipped", "delivered", "cancelled"]).default("pending").notNull(),
   shippingAddress: text("shippingAddress"),
+  inventoryReserved: int("inventoryReserved").default(0).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -87,6 +91,32 @@ export const orderItems = mysqlTable("orderItems", {
 });
 
 export type OrderItem = typeof orderItems.$inferSelect;
+
+export const paymentAttempts = mysqlTable('paymentAttempts', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  userId: bigint('userId', { mode: 'number', unsigned: true }).notNull(),
+  requestKey: varchar('requestKey', { length: 36 }).notNull(),
+  inputHash: varchar('inputHash', { length: 64 }).notNull(),
+  provider: varchar('provider', { length: 20 }).notNull(),
+  orderId: bigint('orderId', { mode: 'number', unsigned: true }),
+  snapshot: json('snapshot'),
+  state: varchar('state', { length: 20 }).default('creating').notNull(),
+  sessionId: varchar('sessionId', { length: 255 }),
+  checkoutUrl: text('checkoutUrl'),
+  settlementId: varchar('settlementId', { length: 255 }),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+}, table => [
+  uniqueIndex('user_request').on(table.userId, table.requestKey),
+  uniqueIndex('provider_settlement').on(table.provider, table.settlementId),
+  uniqueIndex('attempt_order').on(table.orderId),
+]);
+
+export const paymentEvents = mysqlTable('paymentEvents', {
+  provider: varchar('provider', { length: 20 }).notNull(),
+  eventId: varchar('eventId', { length: 255 }).notNull(),
+  attemptId: varchar('attemptId', { length: 36 }).notNull(),
+  createdAt: timestamp('createdAt').defaultNow().notNull(),
+}, table => [primaryKey({ columns: [table.provider, table.eventId] })]);
 
 /* ─── AGENTES ─── */
 export const agents = mysqlTable("agents", {
