@@ -22,6 +22,9 @@ const child = spawn(process.execPath, [fileURLToPath(new URL('../dist/boot.js', 
     APP_ID: 'smoke-test', APP_SECRET: 'test-only-not-a-real-credential',
     DATABASE_URL: 'mysql://test:test@127.0.0.1:1/test',
     KIMI_AUTH_URL: 'https://example.invalid', KIMI_OPEN_URL: 'https://example.invalid',
+    PAYMENTS_ENABLED: '1', SITE_ORIGIN: 'https://samsungstore.com.mx',
+    STRIPE_SECRET_KEY: 'sk_test_fixture', STRIPE_WEBHOOK_SECRET: 'fixture-signing-secret',
+    MERCADOPAGO_ACCESS_TOKEN: 'fixture-token', MERCADOPAGO_WEBHOOK_SECRET: 'fixture-signing-secret', MERCADOPAGO_MODE: 'sandbox',
   },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
@@ -57,6 +60,10 @@ try {
   const ping = await fetch(`${origin}/api/trpc/ping`);
   assert.equal(ping.status, 200);
   assert.equal((await ping.json()).result.data.json.ok, true);
+  for (const provider of ['stripe', 'mercadopago']) {
+    const response = await fetch(`${origin}/api/payments/${provider}/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    assert.equal(response.status, 401, 'Unsigned webhook must never change payment state');
+  }
   console.log('Production smoke passed: root, SPA route, JS asset, missing routes and API ping.');
 } finally {
   if (child.exitCode === null) {
