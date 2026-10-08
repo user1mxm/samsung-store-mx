@@ -10,6 +10,7 @@ import {
   bigint,
   json,
   uniqueIndex,
+  primaryKey,
   boolean,
 } from "drizzle-orm/mysql-core";
 
@@ -115,7 +116,7 @@ export const paymentEvents = mysqlTable('paymentEvents', {
   eventId: varchar('eventId', { length: 255 }).notNull(),
   attemptId: varchar('attemptId', { length: 36 }).notNull(),
   createdAt: timestamp('createdAt').defaultNow().notNull(),
-}, table => [uniqueIndex('provider_event').on(table.provider, table.eventId)]);
+}, table => [primaryKey({ columns: [table.provider, table.eventId] })]);
 
 /* ─── AGENTES ─── */
 export const agents = mysqlTable("agents", {
