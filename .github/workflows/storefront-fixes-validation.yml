@@ -45,4 +45,8 @@ jobs:
       - run: node --test tests/commerce-mysql.test.mjs
         env:
           MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
+      - run: sudo apt-get update && sudo apt-get install -y default-mysql-client
+      - run: node tests/monitor-backup.mjs
+        env:
+          MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
       - run: node tests/production-smoke.mjs

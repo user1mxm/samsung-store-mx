@@ -9,14 +9,15 @@ const processInfo=JSON.parse(execFileSync('pm2',['jlist'],{encoding:'utf8'})).fi
 if(processInfo?.pm2_env?.pm_cwd!==live)throw new Error('Proceso PM2 inesperado');
 let file={};try{file=parse(readFileSync(`${live}/.env`));}catch{}
 const config={...file,...Object.fromEntries(Object.entries(processInfo.pm2_env).filter(([,v])=>typeof v==='string')),...processInfo.pm2_env.env};
-const dir='/opt/samsung-backups/operations';mkdirSync(dir,{recursive:true,mode:0o700});
+const dir=process.env.SAMSUNG_MONITOR_DIR||'/opt/samsung-backups/operations';mkdirSync(dir,{recursive:true,mode:0o700});
 const mode=process.argv[2]||'health';
+const publicOrigin=new URL(config.SITE_ORIGIN||'https://samsungstore.com.mx');if(publicOrigin.protocol!=='https:'&&publicOrigin.hostname!=='localhost')throw new Error('Origen público inválido');
 async function child(command,args,output,input) { const fd=output?openSync(output,'wx',0o600):undefined;const err=output?openSync(output+'.stderr','wx',0o600):undefined;try{const p=spawn(command,args,{env:{...process.env,MYSQL_PWD:decodeURIComponent(new URL(config.DATABASE_URL).password)},stdio:[input===undefined?'ignore':'pipe',fd??'ignore',err??'ignore']});if(input!==undefined)p.stdin.end(input);const code=await new Promise((r,j)=>{p.once('error',j);p.once('exit',r)});if(code!==0)throw new Error(`${command} falló; consulta el log privado`);}finally{if(fd!==undefined)closeSync(fd);if(err!==undefined)closeSync(err);}}
 const url=new URL(config.DATABASE_URL);const database=decodeURIComponent(url.pathname.slice(1));if(!/^[a-zA-Z0-9_]+$/.test(database))throw new Error('Nombre de base inválido');
 const args=[`--host=${url.hostname}`,`--port=${url.port||3306}`,`--user=${decodeURIComponent(url.username)}`];
 if(mode==='health'){
  const checks={pm2:processInfo.pm2_env.status==='online',api:false,domain:false,database:false,backup:false};
- for(const [key,origin] of [['api','http://127.0.0.1:3001'],['domain',config.SITE_ORIGIN||'https://samsungstore.com.mx']])try{const r=await fetch(origin+'/api/trpc/ping',{signal:AbortSignal.timeout(10000)});checks[key]=r.ok&&(await r.json()).result?.data?.json?.ok===true;}catch{}
+ for(const [key,origin] of [['api','http://127.0.0.1:3001'],['domain',publicOrigin.origin]])try{const r=await fetch(origin+'/api/trpc/ping',{signal:AbortSignal.timeout(10000)});checks[key]=r.ok&&(await r.json()).result?.data?.json?.ok===true;}catch{}
  try{const c=await createConnection(config.DATABASE_URL);await c.query('SELECT 1');await c.end();checks.database=true;}catch{}
  try{const b=JSON.parse(readFileSync(`${dir}/backup-status.json`));checks.backup=b.verified===true&&Date.now()-new Date(b.at).getTime()<48*3600000;}catch{}
  const state={at:new Date().toISOString(),ok:Object.values(checks).every(Boolean),checks};let prior;try{prior=JSON.parse(readFileSync(`${dir}/health.json`));}catch{}writeFileSync(`${dir}/health.json`,JSON.stringify(state,null,2),{mode:0o600});
