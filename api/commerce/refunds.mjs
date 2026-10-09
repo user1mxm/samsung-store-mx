@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { transaction,audit } from './core.mjs';
+import { transaction,audit,json } from './core.mjs';
 import { toCents } from '../payments/money.mjs';
 export async function providerRefund(refund,config,fetcher=fetch) {
   const stripe=refund.provider==='stripe';
@@ -39,6 +39,9 @@ export async function finalizeRefund(pool,id) {
     await c.execute("UPDATE orders SET status='cancelled' WHERE id=?",[order.id]);await c.execute("UPDATE serviceBookings SET status='cancelled' WHERE orderId=? AND status<>'completed'",[order.id]);
     await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[order.userId]);
     const [credit]=await c.execute('SELECT points FROM rewardLedger WHERE eventKey=?',[`order:${order.id}`]);if(credit[0])await c.execute('INSERT IGNORE INTO rewardLedger (userId,eventKey,points,reason) VALUES (?,?,?,?)',[order.userId,`refund:${order.id}`,-Number(credit[0].points),`Reembolso pedido #${order.id}`]);
+    const [balance]=await c.execute('SELECT COALESCE(SUM(points),0) AS points FROM rewardLedger WHERE userId=?',[order.userId]);
+    let remaining=Number(balance[0].points);
+    if(remaining<0){const [vouchers]=await c.execute("SELECT id,snapshot FROM rewardRedemptions WHERE userId=? AND status='issued' ORDER BY createdAt DESC FOR UPDATE",[order.userId]);for(const voucher of vouchers){if(remaining>=0)break;const points=Number(json(voucher.snapshot).points);await c.execute("UPDATE rewardRedemptions SET status='void' WHERE id=? AND status='issued'",[voucher.id]);await c.execute('INSERT IGNORE INTO rewardLedger (userId,eventKey,points,reason) VALUES (?,?,?,?)',[order.userId,`void:${voucher.id}`,points,'Canje anulado por reembolso']);remaining+=points;}}
     await c.execute("UPDATE paymentRefunds SET state='confirmed' WHERE id=?",[id]);await audit(c,r.actorId,'payment.refund.confirmed',order.id);
   });
 }

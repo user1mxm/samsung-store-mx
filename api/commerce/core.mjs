@@ -27,7 +27,11 @@ export async function createQuote(pool,userId,items) {
 export async function publicQuote(pool,token) { const [rows]=await pool.execute('SELECT id,snapshot,expiresAt,status FROM storeQuotes WHERE tokenHash=?',[digest(token)]); const q=rows[0]; if(!q) throw new Error('Cotización no encontrada'); return {...q,snapshot:json(q.snapshot),expired:new Date(q.expiresAt).getTime()<=Date.now()}; }
 export function rewardPoints(total,rate) { if(!Number.isInteger(rate)||rate<0||rate>1000) throw new Error('Regla de puntos inválida'); return Math.floor(toCents(total)/10000)*rate; }
 export async function awardRewards(c,orderId) {
-  const [rows]=await c.execute("SELECT o.userId,o.total FROM orders o JOIN paymentAttempts p ON p.orderId=o.id AND p.state='paid' WHERE o.id=? AND o.status='delivered'",[orderId]);
+  const [orders]=await c.execute('SELECT userId,total,status FROM orders WHERE id=? FOR UPDATE',[orderId]);
+  if(orders[0]?.status!=='delivered')return;
+  await c.execute('SELECT id FROM users WHERE id=? FOR UPDATE',[orders[0].userId]);
+  const [payments]=await c.execute("SELECT id FROM paymentAttempts WHERE orderId=? AND state='paid'",[orderId]);
+  const rows=payments.length?orders:[];
   const [settings]=await c.execute("SELECT body FROM storeSettings WHERE name='rewards'"); const rule=json(settings[0]?.body||{});
   if(!rows[0] || !rule.enabled) return;
   const points=rewardPoints(rows[0].total,rule.pointsPer100);

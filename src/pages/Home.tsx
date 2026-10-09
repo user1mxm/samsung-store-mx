@@ -291,7 +291,7 @@ export default function Home() {
   }, [])
 
   const {data:profiles=[]}=trpc.commerce.profiles.useQuery(undefined,{retry:false});
-  const enrichedProducts=useMemo(()=>(products||[]).map(p=>({...p,unitProfile:profiles.find(x=>x.productId===p.id)})),[products,profiles]);
+  const enrichedProducts=useMemo(()=>(products||[]).map(p=>({...p,unitProfile:profiles.find(x=>x.productId===p.id && x.model===p.model)})),[products,profiles]);
   const heroProduct = preferredViewerProduct(enrichedProducts)
 
   /* Derived values */

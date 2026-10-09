@@ -31,9 +31,9 @@ test('commerce transactions use a dedicated real MySQL schema',{skip:!process.en
   });
   await t.test('confirmed full refund reverses rewards once and does not restock shipped goods without inspection',async()=>{
     const attempt=await startCheckout(pool,50001,{provider:'stripe',requestKey:randomUUID(),items,shippingAddress},{},{stripe:async()=>({sessionId:'cs_refund_fixture',url:'https://checkout.stripe.com/c/pay/refund'})});
-    await pool.execute("UPDATE paymentAttempts SET state='paid',settlementId='pi_refund_fixture' WHERE id=?",[attempt.reference]);await pool.execute("UPDATE orders SET status='delivered' WHERE id=?",[attempt.orderId]);await transaction(pool,c=>awardRewards(c,attempt.orderId));
+    await pool.execute("UPDATE paymentAttempts SET state='paid',settlementId='pi_refundfixture' WHERE id=?",[attempt.reference]);await pool.execute("UPDATE orders SET status='delivered' WHERE id=?",[attempt.orderId]);await transaction(pool,c=>awardRewards(c,attempt.orderId));
     const [before]=await pool.execute('SELECT stock FROM products WHERE id=50001');const [order]=await pool.execute('SELECT total FROM orders WHERE id=?',[attempt.orderId]);
-    let calls=0;const remote=async()=>{calls++;return {ok:true,json:async()=>({id:'re_refund_fixture',payment_intent:'pi_refund_fixture',currency:'mxn',amount:Math.round(Number(order[0].total)*100),status:'succeeded'})};};
+    let calls=0;const remote=async()=>{calls++;return {ok:true,json:async()=>({id:'re_refund_fixture',payment_intent:'pi_refundfixture',currency:'mxn',amount:Math.round(Number(order[0].total)*100),status:'succeeded'})};};
     await requestRefund(pool,50002,attempt.orderId,'Fixture confirmed refund',{secretKey:'fixture'},remote);await requestRefund(pool,50002,attempt.orderId,'Fixture duplicate refund',{secretKey:'fixture'},remote);assert.equal(calls,1);
     const [after]=await pool.execute('SELECT stock FROM products WHERE id=50001');assert.equal(after[0].stock,before[0].stock);const [debit]=await pool.execute('SELECT points FROM rewardLedger WHERE eventKey=?',[`refund:${attempt.orderId}`]);assert.equal(debit.length,1);assert.equal(debit[0].points,-12);
   });

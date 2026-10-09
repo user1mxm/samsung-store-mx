@@ -1,5 +1,5 @@
 import { execFileSync,spawn } from 'node:child_process';
-import { readFileSync,writeFileSync,mkdirSync,openSync,closeSync,statSync,existsSync } from 'node:fs';
+import { readFileSync,writeFileSync,mkdirSync,openSync,closeSync,statSync,existsSync,chmodSync,readdirSync,unlinkSync } from 'node:fs';
 import path from 'node:path';
 import { createHash,randomBytes } from 'node:crypto';
 import { parse } from 'dotenv';
@@ -37,7 +37,7 @@ if(mode==='health'){
   for(const name of ['products','orders','orderItems','users','paymentAttempts','storeAudit','productProfiles'])if(!tables.some(r=>r.TABLE_NAME===name))throw new Error('Respaldo sin tabla necesaria');
   const counts={};for(const r of tables){if(!/^[a-zA-Z0-9_]+$/.test(r.TABLE_NAME))throw new Error('Tabla inesperada');const [rows]=await c.query(`SELECT COUNT(*) AS n FROM \`${scratch}\`.\`${r.TABLE_NAME}\``);counts[r.TABLE_NAME]=Number(rows[0].n);}
   const folders=[['uploads',config.UPLOAD_DIR||`${live}/uploads`],['support',config.SUPPORT_PRIVATE_DIR||path.resolve(live,'../samsung-private-support')]];const files={};
-  for(const [label,folder] of folders){if(!path.isAbsolute(folder))throw new Error('Las rutas de respaldo de archivos deben ser absolutas');if(!existsSync(folder))continue;const archive=`${dir}/${stamp}-${label}.tar.gz`;execFileSync('tar',['-czf',archive,'-C',folder,'.'],{stdio:'ignore'});execFileSync('tar',['-tzf',archive],{stdio:'ignore'});files[label]={file:archive,sha256:createHash('sha256').update(readFileSync(archive)).digest('hex')};}
-  writeFileSync(`${dir}/backup-status.json`,JSON.stringify({files,at:new Date().toISOString(),verified:true,file:dump,sha256:createHash('sha256').update(sql).digest('hex'),tables:counts},null,2),{mode:0o600});console.log('Respaldo restaurado y verificado en base temporal; producción no modificada.');
+  for(const [label,folder] of folders){if(!path.isAbsolute(folder))throw new Error('Las rutas de respaldo de archivos deben ser absolutas');if(!existsSync(folder))continue;const archive=`${dir}/${stamp}-${label}.tar.gz`;execFileSync('tar',['-czf',archive,'-C',folder,'.'],{stdio:'ignore'});execFileSync('tar',['-tzf',archive],{stdio:'ignore'});chmodSync(archive,0o600);files[label]={file:archive,sha256:createHash('sha256').update(readFileSync(archive)).digest('hex')};}
+  writeFileSync(`${dir}/backup-status.json`,JSON.stringify({files,at:new Date().toISOString(),verified:true,file:dump,sha256:createHash('sha256').update(sql).digest('hex'),tables:counts},null,2),{mode:0o600});for(const name of readdirSync(dir)){if(/^\d{4}-\d{2}-\d{2}T[\dTZ-]+(?:-uploads\.tar\.gz|-support\.tar\.gz|\.sql(?:\.stderr)?)$/.test(name)){const target=path.join(dir,name);if(Date.now()-statSync(target).mtimeMs>30*86400000)unlinkSync(target);}}console.log('Respaldo restaurado y verificado en base temporal; producción no modificada.');
  }finally{await c.query(`DROP DATABASE IF EXISTS \`${scratch}\``);await c.end();}
 }else throw new Error('Usa health o backup');

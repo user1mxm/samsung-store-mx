@@ -30,7 +30,7 @@ Después del deploy, ejecutar como root:
 bash /opt/samsung-store-mx/scripts/install-monitoring.sh
 ```
 
-El instalador sólo programa las tareas después de restaurar un respaldo en un esquema temporal con nombre aleatorio. Los logs/dumps quedan privados en /opt/samsung-backups/operations. El respaldo de datos del monitor omite rutinas, eventos y triggers; el respaldo completo previo al deploy los conserva. También archiva uploads locales y evidencia privada y verifica la lectura del tar; almacenamiento S3 requiere la política de respaldos del bucket. Copia los respaldos a un destino externo para recuperación ante pérdida del VPS. No se envían avisos a destinatarios externos no configurados.
+El instalador sólo programa las tareas después de restaurar un respaldo en un esquema temporal con nombre aleatorio. Los respaldos operativos se retienen 30 días; los respaldos previos a despliegues no se eliminan. Los logs/dumps quedan privados en /opt/samsung-backups/operations. El respaldo de datos del monitor omite rutinas, eventos y triggers; el respaldo completo previo al deploy los conserva. También archiva uploads locales y evidencia privada y verifica la lectura del tar; almacenamiento S3 requiere la política de respaldos del bucket. Copia los respaldos a un destino externo para recuperación ante pérdida del VPS. No se envían avisos a destinatarios externos no configurados.
 
 En Seguridad registrar passkey con contraseña actual; no se deshabilita el login con contraseña. En Unidades introducir rutas /uploads/ o /media/ obtenidas del cargador de imágenes del panel general. En Entregas publicar CPs, precio en centavos y capacidad. En Recompensas activar una regla explícita y beneficios.
 
@@ -48,7 +48,7 @@ La reserva externa no constituye prueba de pago web ni genera puntos. El adaptad
 
 Checkout Stripe sin pago se cancela sólo cuando el GET autoritativo confirma sesión expired/unpaid y sin PaymentIntent. Mercado Pago pendiente necesita conciliación operativa: una preferencia vencida por sí sola no prueba que ningún pago esté en proceso; no se libera esa reserva automáticamente.
 
-Reembolsos completos únicamente desde pago con settlementId verificado. Resultado remoto incierto queda en revisión; consultar proveedor nunca vuelve a emitir POST. Si el proveedor confirma, se cancela el pedido/agenda y se revierte el crédito de puntos. Sólo existencias no enviadas regresan automáticamente; una devolución enviada requiere recepción e inspección explícita del administrador, idempotente. Saldo negativo después de reembolso impide canjes adicionales.
+Reembolsos completos únicamente desde pago con settlementId verificado. Resultado remoto incierto queda en revisión; consultar proveedor nunca vuelve a emitir POST. Si el proveedor confirma, se cancela el pedido/agenda y se revierte el crédito de puntos. Sólo existencias no enviadas regresan automáticamente; una devolución enviada requiere recepción e inspección explícita del administrador, idempotente. Canjes no entregados se anulan si el reembolso deja saldo negativo; el saldo restante impide canjes adicionales.
 
 Las cotizaciones visibles por token excluyen identidad/domicilio del comprador. Sólo el dueño autenticado convierte una cotización; los asesores consultan seguimiento en /asesoria. El portal /mi-cuenta verifica propiedad del pedido/caso y de cada evidencia.
 

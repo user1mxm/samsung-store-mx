@@ -3,7 +3,7 @@
 export const DU8000_REFERENCE = 'https://www.samsung.com/mx/tvs/uhd-4k-tv/du8000-75-inch-crystal-uhd-4k-tizen-os-smart-tv-un75du8000fxzx/';
 export function tvProfile(product) {
   const dimensions=product?.unitProfile?.dimensions;
-  if(dimensions && dimensions.widthMm>100 && dimensions.heightMm>100 && dimensions.depthMm>0 && /^https:\/\//.test(dimensions.source||'')) {
+  if(dimensions && product?.unitProfile?.model===product?.model && dimensions.widthMm>100 && dimensions.heightMm>100 && dimensions.depthMm>0 && /^https:\/\//.test(dimensions.source||'')) {
     const width=dimensions.widthMm/1000,height=dimensions.heightMm/1000,depth=dimensions.depthMm/1000;
     return {documented:false,configured:true,width,height,depth,totalHeight:height+.04,standDepth:Math.max(.25,depth),standSpan:width*.75,vesa:null,reference:dimensions.source};
   }
