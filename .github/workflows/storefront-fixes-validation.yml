@@ -34,4 +34,8 @@ jobs:
         env:
           MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
       - run: npm run build
+      - run: npm run check
+      - run: node --test tests/tv-model.test.mjs
+      - run: npx playwright install --with-deps chromium
+      - run: node tests/storefront-browser.mjs
       - run: node tests/production-smoke.mjs

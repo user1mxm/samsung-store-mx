@@ -6,7 +6,7 @@ import { localAuthRouter } from "./local-auth-router";
 export type TrpcContext = {
   req: Request;
   resHeaders: Headers;
-  user?: User;
+  user?: Pick<User, 'id' | 'name' | 'email' | 'avatar' | 'role' | 'provider' | 'emailVerified' | 'mustChangePassword' | 'createdAt' | 'lastSignInAt'>;
 };
 
 export async function createContext(

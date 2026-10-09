@@ -47,6 +47,7 @@ try {
   assert.ok(ready, `Server did not become ready: ${output}`);
   const root = await fetch(origin);
   const html = await root.text();
+  assert.equal(root.headers.get("cache-control"), "no-cache");
   assert.equal(root.status, 200);
   assert.match(html, /id="root"/);
   const login = await fetch(`${origin}/login`, { headers: { accept: 'text/html' } });
@@ -65,10 +66,19 @@ try {
   const js = await fetch(origin + asset);
   assert.equal(js.status, 200);
   assert.match(js.headers.get('content-type'), /javascript/);
+  assert.match(js.headers.get('cache-control'), /immutable/);
+  const brotli = await fetch(origin + asset, { headers: { 'accept-encoding': 'br' } });
+  assert.equal(brotli.headers.get('content-encoding'), 'br');
+  assert.equal(await brotli.text(), await js.text());
+  assert.match(brotli.headers.get('vary'), /Accept-Encoding/);
+  const compressedHtml = await fetch(origin, { headers: { 'accept-encoding': 'gzip' } });
+  assert.equal(compressedHtml.headers.get('cache-control'), 'no-cache');
+  assert.equal(await compressedHtml.text(), html);
   assert.equal((await fetch(`${origin}/api/not-a-route`)).status, 404);
   assert.equal((await fetch(`${origin}/assets/not-a-file.js`)).status, 404);
   const ping = await fetch(`${origin}/api/trpc/ping`);
   assert.equal(ping.status, 200);
+  assert.equal(ping.headers.get("cache-control"), "private, no-store");
   assert.equal((await ping.json()).result.data.json.ok, true);
   for (const provider of ['stripe', 'mercadopago']) {
     const response = await fetch(`${origin}/api/payments/${provider}/webhook`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });

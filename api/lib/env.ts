@@ -42,4 +42,6 @@ export const env = {
   s3Endpoint: optional("S3_ENDPOINT"), s3PublicUrl: optional("S3_PUBLIC_URL"),
   s3AccessKeyId: optional("S3_ACCESS_KEY_ID"), s3SecretAccessKey: optional("S3_SECRET_ACCESS_KEY"),
   adminEmail:   optional("ADMIN_EMAIL", "admin@samsungstore.com.mx"),
+  publicBaseUrl: optional("SITE_ORIGIN", optional("PUBLIC_BASE_URL", "https://samsungstore.com.mx")),
+  adminNotifyEmail: optional("ADMIN_NOTIFY_EMAIL", optional("ADMIN_EMAIL", "admin@samsungstore.com.mx")),
 };

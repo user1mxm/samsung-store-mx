@@ -49,7 +49,7 @@ exec 9>/var/lock/samsung-store-deploy.lock
 flock -n 9 || fail 'Another deployment is running'
 node -e 'const [major,minor]=process.versions.node.split(".").map(Number); if(major<20 || (major===20 && minor<19)) process.exit(1)'
 
-printf '\nCheck the uploaded production source baseline\n'
+printf '\nCheck the deployed PR17 source baseline\n'
 node --input-type=module - "$LIVE" "$STAGE/docs/vps-source-manifest.json" <<'NODE'
 import { readFileSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -62,7 +62,7 @@ for(const [path, expected] of Object.entries(JSON.parse(readFileSync(manifest,'u
   } catch { console.error(`Source changed or missing: ${path}`); failed=true; }
 }
 if(failed) process.exit(1);
-console.log('Production baseline matches the uploaded source');
+console.log('Production baseline matches the reviewed PR17 deployment');
 NODE
 
 if test -d "$LIVE/contracts"; then
@@ -75,13 +75,13 @@ tar --exclude='./node_modules' --exclude='./dist' --exclude='./.git' --exclude='
   -czf "$BACKUP/site.tar.gz" -C "$LIVE" .
 
 printf '\nPreserve existing public images and build the isolated release\n'
-if test -d "$LIVE/public"; then rsync -a "$LIVE/public/" "$STAGE/public/"; fi
+if test -d "$LIVE/public"; then rsync -a --exclude=viewer --exclude=media "$LIVE/public/" "$STAGE/public/"; fi
 if test -d "$LIVE/dist/public"; then
-  rsync -a --exclude=assets --exclude=index.html "$LIVE/dist/public/" "$STAGE/public/"
+  rsync -a --exclude=assets --exclude=media --exclude=viewer --exclude=.vite --exclude=index.html --exclude=index.html.br --exclude=index.html.gz "$LIVE/dist/public/" "$STAGE/public/"
 fi
 cd "$STAGE"
 npm ci --include=dev --no-audit --no-fund
-node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/route-contracts.test.mjs tests/deploy-recovery.test.mjs
+node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/route-contracts.test.mjs tests/deploy-recovery.test.mjs tests/tv-model.test.mjs
 npm run build
 node tests/production-smoke.mjs
 node scripts/vps-db.mjs preflight "$LIVE" "$BACKUP/pm2-runtime.json"
@@ -97,7 +97,7 @@ CODE_CHANGED=1
 rsync -a --exclude=seed.ts --exclude=migrate-v3.ts \
   "$STAGE/src" "$STAGE/api" "$STAGE/db" "$STAGE/contracts" \
   "$STAGE/tests" "$STAGE/docs" "$STAGE/scripts" "$LIVE/"
-cp "$STAGE/package.json" "$STAGE/package-lock.json" "$LIVE/"
+cp "$STAGE/package.json" "$STAGE/package-lock.json" "$STAGE/index.html" "$STAGE/vite.config.ts" "$LIVE/"
 mv "$LIVE/dist" "$BACKUP/dist"
 mv "$STAGE/dist" "$LIVE/dist"
 if test -d "$LIVE/node_modules"; then mv "$LIVE/node_modules" "$BACKUP/node_modules"; fi
