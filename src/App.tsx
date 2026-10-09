@@ -2,6 +2,10 @@ import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router'
 import { useAuth } from './hooks/useAuth'
 import Home from './pages/Home'
+const AdvisorQuotes=lazy(()=>import('./pages/AdvisorQuotes'))
+const CommerceOperations = lazy(() => import('./pages/CommerceOperations'))
+const CustomerPortal = lazy(() => import('./pages/CustomerPortal'))
+const SharedQuote = lazy(() => import('./pages/SharedQuote'))
 const Login = lazy(() => import('./pages/Login'))
 const AdminLogin = lazy(() => import('./pages/AdminLogin'))
 const ChangePassword = lazy(() => import('./pages/ChangePassword'))
@@ -26,6 +30,10 @@ export default function App() {
   return (
     <Suspense fallback={accountLoading}><Routes>
       <Route path="/" element={<Home />} />
+      <Route path="/asesoria" element={['admin','agent'].includes(user?.role||'')?<AdvisorQuotes/>:<Navigate to="/login"/>}/>
+      <Route path="/cotizacion/:token" element={<SharedQuote />} />
+      <Route path="/mi-cuenta" element={user ? <CustomerPortal /> : <Navigate to="/login" />} />
+      <Route path="/admin/operaciones" element={user?.role === 'admin' ? <CommerceOperations /> : <Navigate to="/login/admin" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/webmaster" element={<Navigate to="/admin" replace />} />
       <Route path="/admin/login" element={<Navigate to="/login/admin" replace />} />

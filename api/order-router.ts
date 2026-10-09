@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createRouter, authedQuery, adminQuery, publicQuery } from "./middleware";
 import { getDb, getOrderPool } from "./queries/connection";
 import { TRPCError } from "@trpc/server";
+import { transaction,awardRewards,audit } from './commerce/core.mjs';
 import { transitionOrder, OrderError } from "./orders-service.mjs";
 import { paymentConfig } from "./payments/config";
 import { startCheckout, checkoutStatus } from "./payments/checkout-service.mjs";
@@ -25,6 +26,8 @@ export const orderRouter = createRouter({
     provider: z.enum(['stripe', 'mercadopago']),
     requestKey: z.uuid(),
     items: z.array(z.object({ productId: z.number().int().positive(), quantity: z.number().int().min(1).max(999) })).min(1).max(50),
+    quoteToken: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+    service: z.object({zoneId:z.number().int().positive(),date:z.string().regex(/^\d{4}-\d{2}-\d{2}$/),installation:z.boolean()}).optional(),
     shippingAddress: z.object({
       name: z.string().trim().min(2).max(150), email: z.email().max(320), phone: z.string().regex(/^\+?[\d ()-]{10,20}$/),
       address: z.string().trim().min(5).max(300), city: z.string().trim().min(2).max(100), postalCode: z.string().regex(/^\d{5}$/),
@@ -32,6 +35,7 @@ export const orderRouter = createRouter({
   })).mutation(async ({ ctx, input }) => {
     const config = paymentConfig(input.provider);
     if (!config) throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Payments unavailable' });
+    if(!input.service) throw new TRPCError({code:'PRECONDITION_FAILED',message:'Selecciona entrega por código postal'});
     try { return await startCheckout(getOrderPool(), ctx.user.id, input, config); }
     catch (error) {
       if (error instanceof OrderError) throw new TRPCError({ code: error.code, message: error.message });
@@ -89,9 +93,11 @@ export const orderRouter = createRouter({
 
   updateStatus: adminQuery
     .input(z.object({ id: z.number().int().positive(), status: z.enum(["pending", "processing", "shipped", "delivered", "cancelled"]) }))
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input,ctx }) => {
       try {
-        return await transitionOrder(getOrderPool(), input.id, input.status);
+        const result=await transitionOrder(getOrderPool(), input.id, input.status);
+        await transaction(getOrderPool(),async c=>{await awardRewards(c,input.id);await audit(c,ctx.user.id,'order.status',input.id,{status:input.status});});
+        return result;
       } catch (error) {
         if (error instanceof OrderError) throw new TRPCError({ code: error.code, message: error.message });
         throw error;

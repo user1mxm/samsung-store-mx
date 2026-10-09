@@ -100,7 +100,7 @@ export default function TVScene({ product }: { product?: TVProduct }) {
       document.removeEventListener('visibilitychange',visibility);renderer.domElement.removeEventListener('webglcontextlost',loss)
       controls.dispose();disposeTelevision(scene);env.dispose();renderer.dispose();renderer.forceContextLoss();renderer.domElement.remove()
     }
-  },[product?.model,retry])
+  },[product?.model,JSON.stringify(product?.unitProfile),retry])
 
   const snap=(label:string,angle:number)=>{runtime.current?.view(angle);setView(label);setAuto(false)}
   return <div className={`tv-live studio-${studio}`}>

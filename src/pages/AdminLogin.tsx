@@ -17,6 +17,15 @@ export default function AdminLogin() {
   const [error, setError] = useState("");
   const [verifying, setVerifying] = useState(false);
   const utils = trpc.useUtils();
+  const keyOptions=trpc.passkey.loginOptions.useMutation();
+  const keyLogin=trpc.passkey.login.useMutation();
+  async function loginWithKey(){setError('');setVerifying(true);try{
+    const start=await keyOptions.mutateAsync({email:email.trim().toLowerCase()});
+    const {startAuthentication}=await import('@simplewebauthn/browser');
+    const response=await startAuthentication({optionsJSON:start.options});
+    await keyLogin.mutateAsync({id:start.id,response});
+    await utils.localAuth.me.invalidate();const me=await utils.localAuth.me.fetch();if(me?.role!=='admin')throw new Error('No se conservó la sesión');navigate('/admin',{replace:true});
+  }catch(e){setError(e.message||'No se pudo verificar la llave');}finally{setVerifying(false);}}
 
   const loginMutation = trpc.localAuth.login.useMutation({
     onSuccess: async (data) => {
@@ -116,6 +125,7 @@ export default function AdminLogin() {
               </Button>
             </form>
 
+            <Button variant="outline" className="w-full" disabled={verifying||!email.trim()} onClick={loginWithKey}>Ingresar con llave de acceso</Button>
             <p className="text-center text-[10px] text-gray-400 pt-1">
               Esta página es de uso exclusivo para administradores.{" "}
               <button

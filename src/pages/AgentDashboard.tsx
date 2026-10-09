@@ -216,6 +216,8 @@ export default function AgentDashboard() {
   ];
 
   return (
+    <>
+    <a href="/asesoria" className="block px-4 py-3 bg-[#1428A0] text-white text-center">Cotizaciones en seguimiento →</a>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-gradient-to-r from-[#0077C8] to-[#1428A0] text-white sticky top-0 z-40">
@@ -516,5 +518,6 @@ export default function AgentDashboard() {
         )}
       </main>
     </div>
+    </>
   );
 }

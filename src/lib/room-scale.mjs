@@ -1,0 +1,2 @@
+export function screenDimensions(diagonal) { if(!Number.isFinite(diagonal)||diagonal<20||diagonal>150)throw new Error('Diagonal inválida');const cm=diagonal*2.54;return {widthCm:cm*16/Math.hypot(16,9),heightCm:cm*9/Math.hypot(16,9)}; }
+export function calibratedScreenWidth(imageWidth,referenceFraction,referenceCm,diagonal) { if(!Number.isFinite(imageWidth)||imageWidth<=0||referenceFraction<=0||referenceFraction>1||referenceCm<20||referenceCm>1000)throw new Error('Referencia inválida');return imageWidth*referenceFraction*screenDimensions(diagonal).widthCm/referenceCm; }

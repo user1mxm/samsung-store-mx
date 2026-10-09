@@ -13,17 +13,14 @@ export async function createContext(
   opts: FetchCreateContextFnOptions,
 ): Promise<TrpcContext> {
   const ctx: TrpcContext = { req: opts.req, resHeaders: opts.resHeaders };
+  if (!opts.req.headers.get('cookie')) return ctx;
   try {
-    // Try Kimi OAuth first
-    ctx.user = await authenticateRequest(opts.req.headers);
-  } catch {
-    // Fallback to local auth
-    try {
-      const me = await localAuthRouter.createCaller(ctx).me();
-      if (me) ctx.user = me;
-    } catch {
-      // No auth
-    }
+    const me = await localAuthRouter.createCaller(ctx).me();
+    if (me) ctx.user = me;
+  } catch { /* Invalid local identity falls back to the configured provider. */ }
+  if (!ctx.user) {
+    try { ctx.user = await authenticateRequest(opts.req.headers); }
+    catch { /* Anonymous request. */ }
   }
   return ctx;
 }

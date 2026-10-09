@@ -1,5 +1,6 @@
 // Dedicated test schema only. Exercises real password verification, signed cookies,
 // identity lookup, role enforcement and the compiled admin form. No production access.
+import {migrateCommerce} from '../api/commerce/migrate.mjs'
 import assert from 'node:assert/strict'
 import { createPool } from 'mysql2/promise'
 import { hashPassword } from '../api/lib/password-core.mjs'
@@ -16,6 +17,7 @@ const password=`fixture-${randomUUID()}`,secret='fixture-auth-secret-only'
 let server,browser
 const emails=['admin-fixture@example.invalid','client-fixture@example.invalid','legacy-fixture@example.invalid']
 try {
+  await migrateCommerce(pool)
   await pool.query(`CREATE TABLE IF NOT EXISTS users (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, unionId VARCHAR(255) UNIQUE,
     name VARCHAR(255) NOT NULL, email VARCHAR(320) UNIQUE, avatar TEXT, password VARCHAR(255),
@@ -28,8 +30,8 @@ try {
   await pool.execute('DELETE FROM users WHERE email IN (?,?,?)',emails)
   for(let i=0;i<emails.length;i++)await pool.execute('INSERT INTO users (name,email,password,role) VALUES (?,?,?,?)',['Fixture',emails[i],i===2?createHash('sha256').update(password+secret).digest('hex'):await hashPassword(password),i===1?'client':'admin'])
   const listener=createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');const port=listener.address().port;await new Promise(r=>listener.close(r))
-  const origin=`http://127.0.0.1:${port}`
-  server=spawn(process.execPath,['dist/boot.js'],{env:{...process.env,NODE_ENV:'production',BIND_HOST:'127.0.0.1',PORT:String(port),APP_ID:'fixture-auth',APP_SECRET:secret,DATABASE_URL:process.env.MYSQL_TEST_URL,KIMI_AUTH_URL:'https://example.invalid',KIMI_OPEN_URL:'https://example.invalid',PAYMENTS_ENABLED:'0'},stdio:['ignore','pipe','pipe']})
+  const origin=`http://localhost:${port}`
+  server=spawn(process.execPath,['dist/boot.js'],{env:{...process.env,NODE_ENV:'production',BIND_HOST:'127.0.0.1',PORT:String(port),APP_ID:'fixture-auth',APP_SECRET:secret,DATABASE_URL:process.env.MYSQL_TEST_URL,KIMI_AUTH_URL:'https://example.invalid',KIMI_OPEN_URL:'https://example.invalid',PAYMENTS_ENABLED:'0',SITE_ORIGIN:origin},stdio:['ignore','pipe','pipe']})
   let output='';server.stderr.on('data',d=>output+=d)
   for(let i=0;i<80;i++){if(server.exitCode!==null)throw Error(output);try{if((await fetch(origin)).ok)break}catch{}await delay(100)}
   const login=(email,pass=password,isAdmin=true)=>fetch(origin+'/api/trpc/localAuth.login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({json:{email,password:pass,isAdmin}})})
@@ -48,7 +50,7 @@ try {
   const page=await browser.newPage({viewport:{width:390,height:844}})
   await page.route('**/api/trpc/**',route=>{
     const names=decodeURIComponent(new URL(route.request().url()).pathname.split('/api/trpc/')[1]).split(',')
-    if(names.some(n=>n.startsWith('localAuth.')||n==='user.list'))return route.continue()
+    if(names.some(n=>n.startsWith('localAuth.')||n.startsWith('passkey.')||n==='user.list'))return route.continue()
     const result=names.map(()=>({result:{data:{json:[]}}}));return route.fulfill({contentType:'application/json',body:JSON.stringify(new URL(route.request().url()).searchParams.has('batch')?result:result[0])})
   })
   await page.goto(origin+'/webmaster');await page.waitForURL('**/login/admin')
@@ -56,6 +58,37 @@ try {
   await page.getByRole('button',{name:'Ingresar al panel'}).click();await page.getByRole('alert').filter({hasText:'Credenciales inválidas'}).waitFor()
   await page.getByLabel('Contraseña',{exact:true}).fill(password);await page.getByRole('button',{name:'Ingresar al panel'}).click()
   await page.waitForURL('**/admin');await page.getByText('Panel Administrativo',{exact:true}).waitFor();await page.reload();await page.getByText('Panel Administrativo',{exact:true}).waitFor()
+  // A virtual authenticator still exercises actual WebAuthn cryptography and challenge persistence.
+  const cdp=await page.context().newCDPSession(page);await cdp.send('WebAuthn.enable');
+  const {authenticatorId}=await cdp.send('WebAuthn.addVirtualAuthenticator',{options:{protocol:'ctap2',transport:'internal',hasResidentKey:true,hasUserVerification:true,isUserVerified:true,automaticPresenceSimulation:true}});
+  const mutation=async(name,input)=>{const r=await page.request.post(origin+'/api/trpc/'+name,{data:{json:input}});const body=await r.json();if(!r.ok())throw Error(JSON.stringify(body));return body.result.data.json;};
+  const start=await mutation('passkey.registerOptions',{password});
+  const registration=await page.evaluate(async options=>{
+    const decode=v=>Uint8Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+    const encode=v=>btoa(String.fromCharCode(...new Uint8Array(v))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const credential=await navigator.credentials.create({publicKey:{...options,challenge:decode(options.challenge),user:{...options.user,id:decode(options.user.id)},excludeCredentials:options.excludeCredentials.map(c=>({...c,id:decode(c.id)}))}});
+    return {id:credential.id,rawId:encode(credential.rawId),type:credential.type,response:{clientDataJSON:encode(credential.response.clientDataJSON),attestationObject:encode(credential.response.attestationObject),transports:credential.response.getTransports()},clientExtensionResults:credential.getClientExtensionResults()};
+  },start.options);
+  await mutation('passkey.register',{id:start.id,label:'Virtual fixture',response:registration});
+  await assert.rejects(mutation('passkey.register',{id:start.id,label:'Replay',response:registration}));
+  await page.context().clearCookies();
+  const loginStart=await mutation('passkey.loginOptions',{email:emails[0]});
+  const authentication=await page.evaluate(async options=>{
+    const decode=v=>Uint8Array.from(atob(v.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+    const encode=v=>btoa(String.fromCharCode(...new Uint8Array(v))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+    const c=await navigator.credentials.get({publicKey:{...options,challenge:decode(options.challenge),allowCredentials:options.allowCredentials.map(c=>({...c,id:decode(c.id)}))}});
+    return {id:c.id,rawId:encode(c.rawId),type:c.type,response:{clientDataJSON:encode(c.response.clientDataJSON),authenticatorData:encode(c.response.authenticatorData),signature:encode(c.response.signature),userHandle:c.response.userHandle?encode(c.response.userHandle):undefined},clientExtensionResults:c.getClientExtensionResults()};
+  },loginStart.options);
+  await mutation('passkey.login',{id:loginStart.id,response:authentication});
+  assert.equal((await (await page.request.get(origin+'/api/trpc/localAuth.me')).json()).result.data.json.role,'admin');
+  await assert.rejects(mutation('passkey.login',{id:loginStart.id,response:authentication}));
+  await page.context().clearCookies();await page.goto(origin+'/login/admin');
+  await page.getByRole('textbox',{name:'Correo administrador'}).fill(emails[0]);
+  await page.getByRole('button',{name:'Ingresar con llave de acceso',exact:true}).click();
+  await page.waitForURL('**/admin');await page.getByText('Panel Administrativo',{exact:true}).waitFor();
+  await mutation('passkey.remove',{id:registration.id,password});
+  await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId});
+  console.log('Passkey integration passed: real registration/authentication crypto, user verification, one-use challenges, signed cookie, password-confirmed revocation');
   console.log('Admin integration passed: scrypt/legacy, normalized email, invalid/client refusal, HTTP cookie round-trip, protected API, visible failure, login navigation and reload')
 } finally {
   await browser?.close()
