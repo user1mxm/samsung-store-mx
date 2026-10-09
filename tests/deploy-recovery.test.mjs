@@ -52,3 +52,12 @@ for (const phase of ['database', 'health']) test(`deployment failure during ${ph
     assert.equal((await readdir(backups)).length,1);
   } finally { await rm(root,{recursive:true,force:true}); }
 });
+
+test('production baseline checks authored source and excludes the image manifest regenerated from VPS media', async () => {
+  const baseline=JSON.parse(await readFile(new URL('../docs/vps-source-manifest.json',import.meta.url),'utf8'));
+  assert.equal(Object.hasOwn(baseline,'src/generated/image-manifest.json'),false);
+  for(const path of ['src/pages/Home.tsx','api/boot.ts','package-lock.json','scripts/deploy-vps.sh'])
+    assert.match(baseline[path],/^[a-f0-9]{64}$/);
+  const optimizer=await readFile(new URL('../scripts/optimize-images.mjs',import.meta.url),'utf8');
+  assert.ok(optimizer.includes("writeFile('src/generated/image-manifest.json'"));
+});
