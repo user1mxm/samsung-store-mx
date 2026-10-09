@@ -41,3 +41,9 @@ test('commission percentage range and decimal rounding are explicit; zero is not
   assert.equal(commissionEstimate('1000',10),'100.00');assert.equal(commissionEstimate('1000',0),'0.00');assert.equal(commissionEstimate('0.10',5),'0.01');
   for(const n of [-1,25.01,Infinity,NaN,8.001])assert.throws(()=>rateValue.parse(n));
 });
+
+
+test('JSON import accepts UTF-8 BOM and enforces the same size limit as CSV',()=>{
+  assert.deepEqual(toApiRows(decodeRows('\uFEFF[{"id":1,"stock":0}]')),[{id:1,data:{stock:0}}]);
+  assert.throws(()=>decodeRows(JSON.stringify([{description:'x'.repeat(2_000_001)}])),/2 MB/);
+});

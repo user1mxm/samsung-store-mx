@@ -21,6 +21,8 @@ export function parseCsv(text) {
   return rows.map((cells,i)=>{if(cells.length!==header.length)throw Error(`Fila ${i+2}: número de columnas incorrecto`);return Object.fromEntries(header.map((h,j)=>[h,cells[j]]));});
 }
 export function decodeRows(text) {
+  text=text.replace(/^\uFEFF/,'');
+  if(text.length>2_000_000) throw Error('El archivo supera 2 MB');
   const data=text.trim().startsWith('[')?JSON.parse(text):parseCsv(text);
   if(!Array.isArray(data)||!data.length||data.length>100)throw Error('El lote debe tener entre 1 y 100 filas');
   return data.map((row,i)=>{
