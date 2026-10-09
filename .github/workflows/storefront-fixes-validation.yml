@@ -25,8 +25,11 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs
+      - run: node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs
       - run: npm ci --no-audit --no-fund
+      - run: node --test tests/route-contracts.test.mjs
+      - run: node --test tests/deploy-recovery.test.mjs
+      - run: bash -n scripts/deploy-vps.sh
       - run: node --test tests/orders-mysql.test.mjs
         env:
           MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test

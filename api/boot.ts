@@ -14,6 +14,8 @@ import {
   handleTwitterStart, handleTwitterCallback,
 } from "./social-auth";
 
+import { handleUpload, handleServeUpload } from "./upload";
+
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
@@ -34,6 +36,9 @@ app.get("/api/oauth/facebook/callback", handleFacebookCallback);
 app.get("/api/oauth/twitter", handleTwitterStart);
 app.get("/api/oauth/twitter/callback", handleTwitterCallback);
 
+app.post("/api/upload", handleUpload);
+app.get(`${env.uploadPublicPath}/*`, handleServeUpload);
+
 // tRPC
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
@@ -53,7 +58,7 @@ if (env.isProduction) {
   const { serveStaticFiles } = await import("./lib/vite");
   serveStaticFiles(app);
   const port = parseInt(process.env.PORT || "3000");
-  serve({ fetch: app.fetch, port }, () => {
+  serve({ fetch: app.fetch, port, hostname: process.env.BIND_HOST || undefined }, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
 }

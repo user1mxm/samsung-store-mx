@@ -228,38 +228,7 @@ export const referralRouter = createRouter({
   /* ─── Generar comisiones (llamado al crear orden) ─── */
   generateCommissions: authedQuery
     .input(z.object({ orderId: z.number(), buyerId: z.number(), total: z.number() }))
-    .mutation(async ({ input }) => {
-      const db = getDb();
-      let currentUserId = input.buyerId;
-      const created = [];
-      for (let i = 0; i < 3; i++) {
-        const ref = await db.select().from(referrals).where(eq(referrals.userId, currentUserId)).limit(1);
-        if (!ref.length || !ref[0].referrerId) break;
-        const referrerId = ref[0].referrerId;
-
-        // Buscar tasa personalizada
-        let pct = BASE_RATES[i];
-        try {
-          const custom = await db.execute(sql`
-            SELECT rate FROM ambassador_commissions WHERE ambassadorId=${referrerId} AND subAgentId=${currentUserId} LIMIT 1
-          `);
-          const rows = custom[0] as any[];
-          if (rows.length) pct = Number(rows[0].rate);
-        } catch {}
-
-        const amount = (input.total * pct) / 100;
-        await db.insert(commissions).values({
-          userId: referrerId, fromUserId: input.buyerId, orderId: input.orderId,
-          amount: amount.toFixed(2), level: i+1, percentage: pct.toFixed(2),
-        });
-        await db.update(referrals).set({
-          totalEarnings: sql`${referrals.totalEarnings} + ${amount.toFixed(2)}`,
-          totalNetworkSales: sql`${referrals.totalNetworkSales} + ${input.total.toFixed(2)}`,
-        }).where(eq(referrals.userId, referrerId));
-
-        created.push({ userId: referrerId, amount, level: i+1, pct });
-        currentUserId = referrerId;
-      }
-      return { success: true, created };
+    .mutation(async () => {
+      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'La generación automática de comisiones requiere un flujo verificado de pagos y conciliación' });
     }),
 });

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { uploadProductImage } from "@/lib/upload-image.mjs";
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,18 +65,17 @@ function Field({ label, children }: any) {
 }
 
 /* ─── Drag & Drop image zone ─── */
-function ImageDropZone({ value, onChange, compact=false }: { value:string; onChange:(v:string)=>void; compact?:boolean }) {
+function ImageDropZone({ value, onChange, onBusyChange, compact=false }: { value:string; onChange:(v:string)=>void; onBusyChange?:(busy:boolean)=>void; compact?:boolean }) {
   const [dragging, setDragging] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [uploading, setUploading] = useState(false);
 
-  const processFile = (file: File) => {
-    if (!["jpg","jpeg","png","webp","gif"].includes(file.name.split(".").pop()?.toLowerCase()??"")) {
-      toast.error("Formato no soportado"); return;
-    }
-    if (file.size > 8*1024*1024) { toast.error("Máximo 8MB"); return; }
-    const reader = new FileReader();
-    reader.onload = e => onChange(e.target?.result as string);
-    reader.readAsDataURL(file);
+  const processFile = async (file: File) => {
+    if (uploading) return;
+    setUploading(true); onBusyChange?.(true);
+    try { onChange(await uploadProductImage(file)); }
+    catch (error) { toast.error(error instanceof Error ? error.message : "No se pudo subir la imagen"); }
+    finally { setUploading(false); onBusyChange?.(false); }
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -85,6 +85,7 @@ function ImageDropZone({ value, onChange, compact=false }: { value:string; onCha
   };
 
   const onClick = () => {
+    if (uploading) return;
     const i = document.createElement("input");
     i.type="file"; i.accept="image/*";
     i.onchange = (e:any) => { const f=e.target.files[0]; if(f) processFile(f); };
@@ -99,6 +100,7 @@ function ImageDropZone({ value, onChange, compact=false }: { value:string; onCha
       className={`relative border-2 border-dashed rounded-xl cursor-pointer transition-all ${
         dragging ? "border-[#1428A0] bg-blue-50" : value ? "border-gray-200 bg-gray-50" : "border-gray-300 hover:border-[#1428A0] hover:bg-blue-50/30"
       } ${compact ? "h-24" : "h-40"}`}>
+      {uploading && <div className="absolute inset-0 z-10 rounded-xl bg-white/90 flex items-center justify-center text-xs font-bold">Guardando imagen…</div>}
       {value ? (
         <div className="w-full h-full relative">
           <img src={value} alt="preview" className="w-full h-full object-contain rounded-xl p-1" />
@@ -196,6 +198,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: any) {
     description:"",imageUrl:"",featured:"no",features:[],specs:{},rating:"4.5" };
   const [p, setP] = useState<any>(initial ?? empty);
   const [section, setSection] = useState("basic");
+  const [uploading, setUploading] = useState(false);
 
   const set = (k:string,v:any) => setP((prev:any)=>({...prev,[k]:v}));
 
@@ -263,7 +266,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: any) {
         {/* IMAGEN */}
         {section==="media" && <>
           <Field label="Imagen principal (drag & drop o click)">
-            <ImageDropZone value={p.imageUrl} onChange={v=>set("imageUrl",v)} />
+            <ImageDropZone value={p.imageUrl} onChange={v=>set("imageUrl",v)} onBusyChange={setUploading} />
           </Field>
           <Field label="URL de imagen (alternativo)">
             <Input value={p.imageUrl?.startsWith("data:") ? "" : p.imageUrl}
@@ -337,7 +340,7 @@ function ProductForm({ initial, onSave, onCancel, saving }: any) {
       {/* Actions */}
       <div className="flex gap-3 pt-4 border-t border-gray-100 mt-4">
         <Button variant="outline" onClick={onCancel} className="flex-1 rounded-xl h-11">Cancelar</Button>
-        <Button onClick={()=>onSave(p)} disabled={saving || !p.name || !p.price}
+        <Button onClick={()=>onSave(p)} disabled={saving || uploading || !p.name || !p.price}
           className="flex-1 rounded-xl h-11 text-white font-bold" style={{ background:B }}>
           {saving ? "Guardando..." : "Guardar Producto"}
         </Button>

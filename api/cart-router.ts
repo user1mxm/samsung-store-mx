@@ -1,6 +1,9 @@
 // @ts-nocheck
 import { z } from "zod";
 import { createRouter, authedQuery } from "./middleware";
+import { TRPCError } from "@trpc/server";
+import { changeCart } from "./cart-service.mjs";
+import { getOrderPool } from "./queries/connection";
 import { getDb } from "./queries/connection";
 import { cartItems, products } from "@db/schema";
 import { eq, and } from "drizzle-orm";
@@ -18,36 +21,15 @@ export const cartRouter = createRouter({
     return enriched;
   }),
 
-  add: authedQuery
-    .input(z.object({ productId: z.number(), quantity: z.number().min(1).default(1) }))
+  add: authedQuery.input(z.object({ productId: z.number().int().positive(), quantity: z.number().int().min(1).max(999).default(1) }))
     .mutation(async ({ ctx, input }) => {
-      const db = getDb();
-      const userId = ctx.user.id;
-      const existing = await db.select().from(cartItems)
-        .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, input.productId)))
-        .limit(1);
-      if (existing.length > 0) {
-        await db.update(cartItems)
-          .set({ quantity: existing[0].quantity + input.quantity })
-          .where(eq(cartItems.id, existing[0].id));
-      } else {
-        await db.insert(cartItems).values({ userId, productId: input.productId, quantity: input.quantity });
-      }
-      return { success: true };
+      try { return await changeCart(getOrderPool(), ctx.user.id, input.productId, input.quantity, 'add'); }
+      catch (error) { throw new TRPCError({ code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'BAD_REQUEST', message: error.message }); }
     }),
-
-  updateQty: authedQuery
-    .input(z.object({ productId: z.number(), quantity: z.number().min(0) }))
+  updateQty: authedQuery.input(z.object({ productId: z.number().int().positive(), quantity: z.number().int().min(0).max(999) }))
     .mutation(async ({ ctx, input }) => {
-      const db = getDb();
-      const userId = ctx.user.id;
-      if (input.quantity === 0) {
-        await db.delete(cartItems).where(and(eq(cartItems.userId, userId), eq(cartItems.productId, input.productId)));
-      } else {
-        await db.update(cartItems).set({ quantity: input.quantity })
-          .where(and(eq(cartItems.userId, userId), eq(cartItems.productId, input.productId)));
-      }
-      return { success: true };
+      try { return await changeCart(getOrderPool(), ctx.user.id, input.productId, input.quantity); }
+      catch (error) { throw new TRPCError({ code: error.code === 'NOT_FOUND' ? 'NOT_FOUND' : 'BAD_REQUEST', message: error.message }); }
     }),
 
   remove: authedQuery

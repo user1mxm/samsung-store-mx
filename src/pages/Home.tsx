@@ -33,7 +33,7 @@ import {
 
 /* ─── Componentes home ─── */
 import {
-  AnimatedCounter, SkeletonCard, ShimmerImage, VRViewer,
+  AnimatedCounter, SkeletonCard, ShimmerImage, VRViewer, TV3DViewer,
   AIChatWidget, CountdownTimer, SocialProofToasts, VoiceSearch, FloatingCartBar,
   TiltCard, TypewriterText, TestimonialCarousel, ScrollProgress, BackToTop,
   SpecSheet, StockPulse, SizeSelector, InnovationBanner, HelpButton,
@@ -252,6 +252,23 @@ export default function Home() {
   const { data: categories } = trpc.product.categories.useQuery()
   const { data: reviews } = trpc.review.list.useQuery()
 
+  /* tRPC mutations */
+  const cartAddMutation = trpc.cart.add.useMutation()
+  const cartRemoveMutation = trpc.cart.remove.useMutation()
+  const cartUpdateQtyMutation = trpc.cart.updateQty.useMutation()
+
+  /* Load DB cart on login */
+  const { data: dbCart, refetch: refreshCart } = trpc.cart.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+    retry: false,
+    refetchOnWindowFocus: false,
+  })
+  useEffect(() => {
+    if (isAuthenticated && dbCart && products) {
+      setCart(reconcileCart(dbCart.map((item: any) => ({ product: item.product, quantity: item.quantity })), products))
+    }
+  }, [dbCart, products, isAuthenticated])
+
   /* State */
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
@@ -372,6 +389,7 @@ export default function Home() {
   /* Cart actions */
   const addToCart = useCallback((product: any) => {
     if (!stockLimit(product)) { toast.error('Producto sin existencias'); return }
+    if (cart.some(item => item.product.id === product.id && item.quantity >= stockLimit(product))) { toast.info('Ya tienes las unidades disponibles en tu carrito'); return }
     setCart(prev => {
       const existing = prev.find(i => i.product.id === product.id)
       if (existing) {
@@ -379,18 +397,36 @@ export default function Home() {
       }
       return [...prev, { product, quantity: 1 }]
     })
+    if (isAuthenticated) {
+      cartAddMutation.mutate({ productId: product.id, quantity: 1 }, {
+        onSuccess: () => refreshCart(),
+        onError: error => { toast.error(error.message); refreshCart() },
+      })
+    }
     confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 }, colors: ['#1428A0', '#0077C8', '#00BFFF'] })
     toast.success(`${product.name} agregado`, { icon: <ShoppingCart className="w-4 h-4" /> })
-  }, [])
+  }, [cart, isAuthenticated])
 
   const removeFromCart = useCallback((productId: number) => {
     setCart(prev => prev.filter(i => i.product.id !== productId))
-  }, [])
+    if (isAuthenticated) {
+      cartRemoveMutation.mutate({ productId }, {
+        onSuccess: () => refreshCart(),
+        onError: error => { toast.error(error.message); refreshCart() },
+      })
+    }
+  }, [isAuthenticated])
 
   const updateQty = useCallback((productId: number, qty: number) => {
     if (qty <= 0) { removeFromCart(productId); return }
-    setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity: clampQuantity(i.product, qty) } : i).filter(i => i.quantity > 0))
-  }, [removeFromCart])
+    const product = cart.find(i => i.product.id === productId)?.product
+    const quantity = product ? clampQuantity(product, qty) : 0
+    if (!quantity) return
+    setCart(prev => prev.map(i => i.product.id === productId ? { ...i, quantity } : i))
+    if (isAuthenticated) cartUpdateQtyMutation.mutate({ productId, quantity }, {
+      onSuccess: () => refreshCart(), onError: error => { toast.error(error.message); refreshCart() },
+    })
+  }, [removeFromCart, cart, isAuthenticated])
 
   /* Wishlist */
   const toggleWishlist = useCallback((productId: number) => {
@@ -507,10 +543,16 @@ export default function Home() {
                   Acceso
                 </Button>
               ) : (
-                <button onClick={() => navigate(user?.role === 'admin' ? '/admin' : user?.role === 'agent' ? '/agent' : '/mi-red')}
-                  className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white text-xs font-bold ml-1">
-                  {(user?.name || 'U')[0]}
-                </button>
+                <div className="flex items-center gap-1 ml-1">
+                  <button onClick={() => navigate('/mis-pedidos')}
+                    className={`hidden sm:flex items-center h-8 px-3 rounded-full text-[10px] font-semibold transition-colors ${darkMode ? 'text-gray-400 hover:text-white hover:bg-white/10' : 'text-gray-600 hover:text-[#1428A0] hover:bg-gray-100'}`}>
+                    Pedidos
+                  </button>
+                  <button onClick={() => navigate(user?.role === 'admin' ? '/admin' : user?.role === 'agent' ? '/agent' : '/mi-red')}
+                    className="w-9 h-9 rounded-full bg-gradient-to-br from-[#1428A0] to-[#0077C8] flex items-center justify-center text-white text-xs font-bold">
+                    {(user?.name || 'U')[0]}
+                  </button>
+                </div>
               )}
               <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-gray-100 dark:hover:bg-white/10">
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -536,10 +578,23 @@ export default function Home() {
                   className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
                   Carrito ({cartCount})
                 </button>
-                <button onClick={() => { navigate('/login'); setMobileMenuOpen(false) }}
-                  className="block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg text-[#1428A0] font-bold">
-                  Iniciar Sesion
-                </button>
+                {isAuthenticated ? (
+                  <>
+                    <button onClick={() => { navigate('/mis-pedidos'); setMobileMenuOpen(false) }}
+                      className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      Mis Pedidos
+                    </button>
+                    <button onClick={() => { navigate('/mi-red'); setMobileMenuOpen(false) }}
+                      className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
+                      Mi Red
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={() => { navigate('/login'); setMobileMenuOpen(false) }}
+                    className="block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg text-[#1428A0] font-bold">
+                    Iniciar Sesion
+                  </button>
+                )}
               </div>
             </motion.div>
           )}
@@ -561,10 +616,10 @@ export default function Home() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-[#1428A0]">Samsung 2024 · FloatLayer Design</span>
                 </div>
                 <h1 className={`text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] mb-3 max-w-3xl mx-auto ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  <TypewriterText texts={['S95H OLED · El Futuro Visual', 'Neo QLED 8K · Realidad Total', 'Odyssey G9 · Gaming Definitivo']} speed={55} delay={2800} />
+                  <TypewriterText texts={products?.[0]?.name ? [products[0].name] : ['Explora el catálogo Samsung']} speed={55} delay={2800} />
                 </h1>
                 <p className={`text-sm max-w-lg mx-auto mb-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Rotacion 360° interactiva. Arrastra para explorar cada angulo del TV mas avanzado de Samsung.
+                  Vista 3D ilustrativa. Arrastra para explorar; consulta la ficha de cada producto para sus especificaciones.
                 </p>
                 <div className="flex flex-wrap items-center justify-center gap-5 mb-2">
                   {[{ icon: Shield, label: '5 Anos Garantia' }, { icon: Clock, label: '24h Express' }, { icon: Award, label: 'CES 2024' }].map(b => (
@@ -580,7 +635,7 @@ export default function Home() {
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }}
               className="max-w-4xl mx-auto">
               <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
-                <VRViewer product={products?.[0] || { name: 'Samsung S95D OLED', model: 'QN65S95D', imageUrl: '/tv-s95d-real.jpg' }} />
+                <TV3DViewer product={products?.[0]} />
               </motion.div>
             </motion.div>
 
