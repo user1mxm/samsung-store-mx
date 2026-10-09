@@ -521,11 +521,12 @@ export default function AdminDashboard() {
     approveAgent.mutate({ userId:Number(form.userId), code:form.code, specialty:form.specialty });
   };
 
-  const salesData = [
-    {mes:"Ene",ventas:12,ingresos:48000},{mes:"Feb",ventas:18,ingresos:72000},
-    {mes:"Mar",ventas:14,ingresos:56000},{mes:"Abr",ventas:22,ingresos:88000},
-    {mes:"May",ventas:28,ingresos:112000},{mes:"Jun",ventas:35,ingresos:140000},
-  ];
+  const salesData = Object.values((orders||[]).reduce((groups,o)=>{
+    const mes=new Date(o.createdAt).toISOString().slice(0,7);
+    const row=groups[mes]??={mes,ventas:0,ingresos:0};row.ventas++;
+    if(['processing','shipped','delivered'].includes(o.status))row.ingresos+=Number(o.total);
+    return groups;
+  },{})).sort((a,b)=>a.mes.localeCompare(b.mes));
 
   const TABS = [
     { id:"overview", label:"Overview",  icon:BarChart3   },
@@ -536,6 +537,8 @@ export default function AdminDashboard() {
   ];
 
   return (
+    <>
+    <a className="block bg-[#1428A0] text-white px-6 py-3 text-center font-bold" href="/admin/operaciones">Abrir control maestro: operación, seguridad y posventa →</a>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
@@ -576,10 +579,10 @@ export default function AdminDashboard() {
         {tab==="overview" && (
           <motion.div initial={{opacity:0}} animate={{opacity:1}} className="space-y-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <StatCard icon={DollarSign} label="Ingresos" value={`$${totalRevenue.toLocaleString()}`} color={B} trend={12} />
+              <StatCard icon={DollarSign} label="Ingresos" value={`$${totalRevenue.toLocaleString()}`} color={B} />
               <StatCard icon={Package} label="Productos" value={products?.length??0} sub={`${lowStock} bajo stock`} color={A} />
               <StatCard icon={ShoppingCart} label="Órdenes pendientes" value={pendingOrders} color="#FF6900" />
-              <StatCard icon={Users} label="Usuarios" value={userStats?.total??0} sub={`${userStats?.agents??0} agentes activos`} color="#28a745" trend={8} />
+              <StatCard icon={Users} label="Usuarios" value={userStats?.total??0} sub={`${userStats?.agents??0} agentes activos`} color="#28a745" />
             </div>
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <p className="text-sm font-bold text-gray-900 mb-4">Ventas mensuales</p>
@@ -971,5 +974,6 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }

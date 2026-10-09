@@ -1,3 +1,5 @@
+import { getOrderPool } from './queries/connection';
+import { audit } from './commerce/core.mjs';
 import { ErrorMessages } from "@contracts/constants";
 import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
@@ -39,5 +41,13 @@ function requireRole(role: string) {
 }
 
 export const authedQuery = t.procedure.use(requireAuth);
-export const adminQuery = authedQuery.use(requireRole("admin"));
+const recordAdminMutation = t.middleware(async ({ctx,type,path,next}) => {
+  if(type !== 'mutation') return next();
+  // Log intent before invoking a legacy mutation: failure to record stops the write.
+  await audit(getOrderPool(),ctx.user!.id,`${path}.requested`,'');
+  const result=await next();
+  await audit(getOrderPool(),ctx.user!.id,`${path}.${result.ok?'completed':'failed'}`,'');
+  return result;
+});
+export const adminQuery = authedQuery.use(requireRole("admin")).use(recordAdminMutation);
 export const agentQuery = authedQuery.use(requireRole("agent"));

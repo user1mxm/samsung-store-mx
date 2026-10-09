@@ -1,4 +1,6 @@
 // @ts-nocheck
+import { searchCatalog } from '../src/lib/catalog-search.mjs';
+import { toCents,fromCents } from './payments/money.mjs';
 import { z } from "zod";
 import { createRouter, publicQuery, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
@@ -15,9 +17,8 @@ export const productRouter = createRouter({
     .query(async ({ input }) => {
       const db = getDb();
       const all = await db.select().from(products).orderBy(desc(products.createdAt));
-      return all.filter(p => {
+      return searchCatalog(all,input?.search).filter(p => {
         if (input?.category && input.category !== "all" && p.category !== input.category) return false;
-        if (input?.search && !p.name.toLowerCase().includes(input.search.toLowerCase())) return false;
         if (input?.featured && p.featured !== input.featured) return false;
         return true;
       });
@@ -55,7 +56,7 @@ export const productRouter = createRouter({
       const db = getDb();
       const values = {
         ...input,
-        price: String(input.price),
+        price: fromCents(toCents(input.price)),
         features: input.features ? JSON.stringify(input.features) : null,
         specs: input.specs ? JSON.stringify(input.specs) : null,
       };
@@ -85,7 +86,7 @@ export const productRouter = createRouter({
     .mutation(async ({ input }) => {
       const db = getDb();
       const d: any = { ...input.data };
-      if (d.price !== undefined) d.price = String(d.price);
+      if (d.price !== undefined) d.price = fromCents(toCents(d.price));
       if (d.comparePrice !== undefined) d.comparePrice = String(d.comparePrice);
       if (d.features !== undefined) d.features = JSON.stringify(d.features);
       if (d.specs !== undefined) d.specs = JSON.stringify(d.specs);

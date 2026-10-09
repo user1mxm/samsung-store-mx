@@ -1,10 +1,12 @@
+import { reserveService, digest, json } from '../commerce/core.mjs';
+import { toCents, fromCents } from './money.mjs';
 import { createHash, randomUUID } from 'node:crypto';
 import { insertReservedOrder, validateItems, OrderError } from '../orders-service.mjs';
 import { createStripeCheckout, createMercadoPagoCheckout, isSettledPayment } from './providers.mjs';
 
 function inputHash(input) {
   const shipping = Object.fromEntries(Object.entries(input.shippingAddress).sort(([a], [b]) => a.localeCompare(b)));
-  return createHash('sha256').update(JSON.stringify({ items: validateItems(input.items), shipping, provider: input.provider })).digest('hex');
+  return createHash('sha256').update(JSON.stringify({ items: validateItems(input.items), shipping, provider: input.provider, service: input.service || null, quoteToken: input.quoteToken || null })).digest('hex');
 }
 
 function publicAttempt(row) {
@@ -31,7 +33,22 @@ export async function startCheckout(pool, userId, input, config, clients = {}) {
     await connection.beginTransaction();
     // Unique insertion serializes the same logical checkout before reserving stock.
     await connection.execute('INSERT INTO paymentAttempts (id, userId, requestKey, inputHash, provider) VALUES (?, ?, ?, ?, ?)', [reference, userId, input.requestKey, hash, input.provider]);
-    order = await insertReservedOrder(connection, userId, input);
+    let quoted;
+    if (input.quoteToken) {
+      const [quotes] = await connection.execute("SELECT * FROM storeQuotes WHERE tokenHash=? AND userId=? AND status='open' AND expiresAt>NOW() FOR UPDATE",[digest(input.quoteToken),userId]);
+      if (!quotes[0]) throw new OrderError('CONFLICT','Cotización vencida o no disponible');
+      quoted = json(quotes[0].snapshot);
+      if (JSON.stringify(validateItems(quoted.items)) !== JSON.stringify(validateItems(input.items))) throw new OrderError('CONFLICT','La cotización no corresponde a este carrito');
+    }
+    order = await insertReservedOrder(connection, userId, {...input, quoted});
+    if (input.quoteToken) await connection.execute("UPDATE storeQuotes SET status='converted',orderId=? WHERE tokenHash=?",[order.orderId,digest(input.quoteToken)]);
+    if (input.service) {
+      const line = await reserveService(connection,userId,order.orderId,input.service,input.shippingAddress.postalCode);
+      const cents = toCents(order.total)+toCents(line.price);
+      order.total=fromCents(cents);
+      if (toCents(line.price)>0) order.items.push({...line,productId:'delivery'});
+      await connection.execute('UPDATE orders SET total=? WHERE id=?',[order.total,order.orderId]);
+    }
     snapshot = { reference, total: order.total, items: order.items };
     await connection.execute('UPDATE paymentAttempts SET orderId = ?, snapshot = ? WHERE id = ?', [order.orderId, JSON.stringify(snapshot), reference]);
     await connection.commit();

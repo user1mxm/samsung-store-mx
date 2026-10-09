@@ -29,6 +29,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: node --test tests/route-contracts.test.mjs
       - run: node --test tests/deploy-recovery.test.mjs
+      - run: node --test tests/commerce.test.mjs
       - run: bash -n scripts/deploy-vps.sh
       - run: node --test tests/orders-mysql.test.mjs
         env:
@@ -39,6 +40,9 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: node tests/storefront-browser.mjs
       - run: node tests/admin-auth-mysql.mjs
+        env:
+          MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
+      - run: node --test tests/commerce-mysql.test.mjs
         env:
           MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
       - run: node tests/production-smoke.mjs
