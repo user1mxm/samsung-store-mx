@@ -19,7 +19,7 @@ export function TV3DViewer({ product }: { product?: TVProduct }) {
     <div className="tv-viewer-header"><div><span className="studio-eyebrow"><span /> ESTUDIO 360°</span><h2>{name}</h2><p>{model} · {profile.documented ? 'Proporciones basadas en Samsung' : profile.configured ? 'Medidas de ficha · base ilustrativa' : 'Recreación ilustrativa'}</p></div><span className="studio-tag">{profile.documented ? '75″ · AirSlim' : 'Vista de producto'}</span></div>
     {active ? <Suspense fallback={<div className="tv-stage tv-loading"><TVPoster name={name} /><p role="status">Preparando iluminación y materiales…</p></div>}><TVScene product={product} /></Suspense>
       : <div className="tv-stage tv-preview"><TVPoster name={name} /><div className="tv-preview-action"><button onClick={() => setActive(true)} className="studio-primary"><Box size={17} /> Explorar en 360° <ArrowUpRight size={16} /></button><p>Gira, acerca y descubre cada ángulo.</p></div></div>}
-    <div className="tv-viewer-note"><span>Recreación 3D · imagen de demostración</span>{profile.reference && <a href={profile.reference} target="_blank" rel="noreferrer">Ficha del fabricante <ArrowUpRight size={12} /></a>}</div>
+    <div className="tv-viewer-note"><span>Recreación 3D · imagen de demostración</span>{profile.reference && <a href={profile.reference} target="_blank" rel="noreferrer">Fuente de medidas <ArrowUpRight size={12} /></a>}</div>
   </section>
 }
 export default TV3DViewer
