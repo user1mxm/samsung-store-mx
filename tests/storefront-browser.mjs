@@ -33,6 +33,7 @@ try {
     });
     await page.goto(origin);await page.getByRole('heading',{name:/El detalle/}).waitFor();
     await page.getByRole('heading',{name:products[0].name,exact:true}).first().waitFor();
+    await page.getByRole('combobox',{name:'Seleccionar modelo'}).waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false,`Overflow at ${viewport.width}`);
     assert.equal(await page.locator('#hero-title').evaluate(el=>el.scrollWidth>el.clientWidth),false,'Hero text is clipped');
     assert.ok(!requests.some(u=>/TVScene-|AdminDashboard-|AreaChart-/.test(u)),'Heavy viewer/admin chunks were downloaded before use');
@@ -51,8 +52,18 @@ try {
     if(process.env.STOREFRONT_SCREENSHOTS){
       await mkdir(process.env.STOREFRONT_SCREENSHOTS,{recursive:true});
       await page.getByRole('button',{name:'Acercar',exact:true}).press('Control+Home');
+      await page.locator('.model-swipe').screenshot({path:`${process.env.STOREFRONT_SCREENSHOTS}/catalog-swipe-${viewport.width}.png`});
+      await page.getByRole('button',{name:'Acercar',exact:true}).press('Control+Home');
       await page.screenshot({path:`${process.env.STOREFRONT_SCREENSHOTS}/samsung-premium-${viewport.width}.png`,fullPage:viewport.width<640});
     }
+    await page.getByRole('button',{name:'Modelo siguiente',exact:true}).click();
+    await page.waitForFunction(()=>document.querySelector('select[aria-label="Seleccionar modelo"]').value==='2');
+    await page.getByRole('combobox',{name:'Seleccionar modelo'}).selectOption('1');
+    await page.getByRole('button',{name:'Detalles',exact:true}).click();
+    await page.locator('.model-description').getByText('Pieza de exhibición.',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Imagen',exact:true}).click();
+    await page.locator('.model-swipe-track').evaluate(el=>el.scrollTo({left:el.clientWidth,behavior:'instant'}));
+    await page.waitForFunction(()=>document.querySelector('select[aria-label="Seleccionar modelo"]').value==='2');
     await page.getByRole('textbox',{name:'Buscar productos',exact:true}).fill('UN75DU8000');
     await page.getByRole('button',{name:'Agregar al Carrito',exact:true}).click();
     await page.getByRole('button',{name:'Agregar al Carrito',exact:true}).click();
@@ -61,6 +72,11 @@ try {
     assert.ok((await page.getByRole('dialog').innerText()).includes('$13,400 MXN'));
     await page.getByRole('button',{name:'Ver resumen',exact:true}).click();
     await page.getByText('El pago en línea todavía no está disponible.',{exact:false}).waitFor();
+    await page.keyboard.press('Escape');
+    await page.goto(origin);
+    await page.getByRole('button',{name:'Panel Admin',exact:true}).click();
+    await page.waitForURL('**/login/admin');
+    await page.getByRole('button',{name:'Ingresar al panel'}).waitFor();
     assert.equal(errors.length,0,errors.join('\n'));
     console.log(`Compiled storefront passed at ${viewport.width}px: layout, deferred 3D, WebGL, camera, lights, model search, stock cap, subtotal, disabled checkout`);
     await context.close();

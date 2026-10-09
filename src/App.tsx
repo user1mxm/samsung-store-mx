@@ -27,6 +27,8 @@ export default function App() {
     <Suspense fallback={accountLoading}><Routes>
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/webmaster" element={<Navigate to="/admin" replace />} />
+      <Route path="/admin/login" element={<Navigate to="/login/admin" replace />} />
       <Route path="/login/admin" element={<AdminLogin />} />
       <Route path="/change-password" element={<ChangePassword />} />
       <Route path="/mi-red" element={<NetworkPage />} />

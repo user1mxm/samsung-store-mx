@@ -38,4 +38,7 @@ jobs:
       - run: node --test tests/tv-model.test.mjs
       - run: npx playwright install --with-deps chromium
       - run: node tests/storefront-browser.mjs
+      - run: node tests/admin-auth-mysql.mjs
+        env:
+          MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
       - run: node tests/production-smoke.mjs
