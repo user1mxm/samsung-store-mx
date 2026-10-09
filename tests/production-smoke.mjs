@@ -49,11 +49,14 @@ try {
   const html = await root.text();
   assert.equal(root.headers.get("cache-control"), "no-cache");
   assert.equal(root.status, 200);
+  assert.match(root.headers.get('content-security-policy-report-only'),/frame-ancestors 'none'/);
+  assert.equal(root.headers.get('x-content-type-options'),'nosniff');
+  assert.equal((await fetch(origin+'/api/security/csp-report',{method:'POST',headers:{'content-type':'application/csp-report'},body:JSON.stringify({'csp-report':{'effective-directive':'script-src','blocked-uri':'inline'}})})).status,204);
   assert.match(html, /id="root"/);
   const login = await fetch(`${origin}/login`, { headers: { accept: 'text/html' } });
   assert.equal(login.status, 200);
   assert.equal(await login.text(), html);
-  for (const route of ['/login/admin', '/change-password', '/mis-pedidos']) {
+  for (const route of ['/login/admin', '/change-password', '/mis-pedidos','/admin/operaciones','/mi-cuenta','/asesoria']) {
     assert.equal((await fetch(origin + route, { headers: { accept: 'text/html' } })).status, 200);
   }
   assert.equal((await fetch(origin + '/api/upload', { method: 'POST' })).status, 401);

@@ -150,7 +150,7 @@ export default function Home() {
     { enabled: isAuthenticated && paymentProviders.length > 0, retry: false, refetchInterval: checkoutOpen ? 5000 : false },
   )
   useEffect(() => {
-    if (paymentState?.state === 'paid') {
+    if (['paid','cancelled'].includes(paymentState?.state)) {
       try { localStorage.removeItem(`checkout-request-${user?.id}`) } catch { /* Storage may be unavailable. */ }
     }
   }, [paymentState?.state, user?.id])
@@ -982,12 +982,12 @@ export default function Home() {
               <div className="space-y-3">
                 <p role="status" className="text-sm">{paymentState.state === 'paid'
                   ? `Pago verificado. Pedido #${paymentState.orderId}.`
-                  : paymentState.state === 'pending'
+                  : paymentState.state === 'cancelled' ? `Pedido #${paymentState.orderId}: checkout cancelado sin pago.` : paymentState.state === 'pending'
                     ? `Pedido #${paymentState.orderId}: pago pendiente de confirmación.`
                     : `Pedido #${paymentState.orderId}: el intento de pago requiere revisión. No inicies otro pago.`}</p>
                 {paymentState.state === 'pending' && paymentState.url && <Button className="w-full" onClick={() => window.location.assign(paymentState.url)}>Retomar pago</Button>}
                 <Button variant="outline" onClick={() => void refreshPayment()}>Actualizar estado</Button>
-                {paymentState.state === 'paid' && <Button variant="outline" onClick={() => {
+                {['paid','cancelled'].includes(paymentState.state) && <Button variant="outline" onClick={() => {
                   setCheckoutReference(undefined)
                   try { localStorage.removeItem('checkout-reference') } catch { /* Storage may be unavailable. */ }
                 }}>Preparar otra compra</Button>}

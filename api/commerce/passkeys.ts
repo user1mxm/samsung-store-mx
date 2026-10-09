@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {transaction,audit} from './core.mjs';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server';
@@ -48,7 +49,7 @@ export const passkeyRouter = createRouter({
     const verification=await verifyRegistrationResponse({response:input.response,expectedChallenge:ch.challenge,expectedOrigin:origin,expectedRPID:rpID,requireUserVerification:true});
     if(!verification.verified || !verification.registrationInfo) throw new Error('Llave no verificada');
     const credential=verification.registrationInfo.credential;
-    await getOrderPool().execute('INSERT INTO adminPasskeys (id,userId,publicKey,counter,transports,label) VALUES (?,?,?,?,?,?)',[credential.id,ctx.user.id,Buffer.from(credential.publicKey),credential.counter,JSON.stringify(credential.transports||[]),input.label]);
+    await transaction(getOrderPool(),async c=>{const [users]=await c.execute('SELECT role FROM users WHERE id=? FOR UPDATE',[ctx.user.id]);if(users[0]?.role!=='admin')throw new Error('Acceso administrativo requerido');const [count]=await c.execute('SELECT COUNT(*) AS n FROM adminPasskeys WHERE userId=?',[ctx.user.id]);if(Number(count[0].n)>=10)throw new Error('Máximo 10 llaves');await c.execute('INSERT INTO adminPasskeys (id,userId,publicKey,counter,transports,label) VALUES (?,?,?,?,?,?)',[credential.id,ctx.user.id,Buffer.from(credential.publicKey),credential.counter,JSON.stringify(credential.transports||[]),input.label]);await audit(c,ctx.user.id,'passkey.register',credential.id);});
     return {success:true};
   }),
   remove: adminQuery.input(z.object({id:z.string().min(1).max(255),password:z.string().min(1).max(200)})).mutation(async ({ctx,input}) => { await password(ctx.user.id,input.password); await getOrderPool().execute('DELETE FROM adminPasskeys WHERE id=? AND userId=?',[input.id,ctx.user.id]); return {success:true}; }),

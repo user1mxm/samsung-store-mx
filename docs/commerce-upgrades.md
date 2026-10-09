@@ -46,6 +46,8 @@ La reserva externa no constituye prueba de pago web ni genera puntos. El adaptad
 
 ## Reembolsos y fidelidad
 
+Checkout Stripe sin pago se cancela sólo cuando el GET autoritativo confirma sesión expired/unpaid y sin PaymentIntent. Mercado Pago pendiente necesita conciliación operativa: una preferencia vencida por sí sola no prueba que ningún pago esté en proceso; no se libera esa reserva automáticamente.
+
 Reembolsos completos únicamente desde pago con settlementId verificado. Resultado remoto incierto queda en revisión; consultar proveedor nunca vuelve a emitir POST. Si el proveedor confirma, se cancela el pedido/agenda y se revierte el crédito de puntos. Sólo existencias no enviadas regresan automáticamente; una devolución enviada requiere recepción e inspección explícita del administrador, idempotente. Saldo negativo después de reembolso impide canjes adicionales.
 
 Las cotizaciones visibles por token excluyen identidad/domicilio del comprador. Sólo el dueño autenticado convierte una cotización; los asesores consultan seguimiento en /asesoria. El portal /mi-cuenta verifica propiedad del pedido/caso y de cada evidencia.

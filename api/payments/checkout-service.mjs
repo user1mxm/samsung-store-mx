@@ -18,7 +18,7 @@ async function reuse(pool, userId, key, hash) {
   const row = rows[0];
   if (!row) throw new OrderError('CONFLICT', 'Checkout is being created; retry with the same request key');
   if (row.inputHash !== hash) throw new OrderError('CONFLICT', 'Checkout key already belongs to a different cart or provider');
-  if (row.state === 'pending' || row.state === 'paid') return publicAttempt(row);
+  if (row.state === 'pending' || row.state === 'paid' || row.state === 'cancelled') return publicAttempt(row);
   throw new OrderError('CONFLICT', 'Checkout outcome requires reconciliation; do not create another payment');
 }
 
