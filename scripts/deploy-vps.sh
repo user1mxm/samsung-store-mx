@@ -65,6 +65,9 @@ if(failed) process.exit(1);
 console.log('Production baseline matches the uploaded source');
 NODE
 
+if test -d "$LIVE/contracts"; then
+  diff -qr "$LIVE/contracts" "$STAGE/contracts" || fail 'VPS contracts differ; compare them before deploying'
+fi
 mkdir -p /opt/samsung-backups
 BACKUP=$(mktemp -d /opt/samsung-backups/reconciled-XXXXXXXX)
 pm2 jlist > "$BACKUP/pm2-runtime.json"
@@ -78,7 +81,7 @@ if test -d "$LIVE/dist/public"; then
 fi
 cd "$STAGE"
 npm ci --include=dev --no-audit --no-fund
-node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/route-contracts.test.mjs
+node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/route-contracts.test.mjs tests/deploy-recovery.test.mjs
 npm run build
 node tests/production-smoke.mjs
 node scripts/vps-db.mjs preflight "$LIVE" "$BACKUP/pm2-runtime.json"
@@ -102,6 +105,7 @@ mv "$STAGE/node_modules" "$LIVE/node_modules"
 PAYMENTS_ENABLED=0 pm2 restart samsung-store --update-env
 curl --fail --silent --show-error --retry 8 --retry-delay 1 --retry-connrefused --max-time 10 http://127.0.0.1:3001/api/trpc/ping
 node "$LIVE/scripts/vps-health.mjs" live
+node "$LIVE/scripts/vps-health.mjs" domain
 pm2 save
 printf '%s\n' "$EXPECTED" > "$LIVE/.samsung-release"
 STOPPED=0

@@ -28,6 +28,7 @@ jobs:
       - run: node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs
       - run: npm ci --no-audit --no-fund
       - run: node --test tests/route-contracts.test.mjs
+      - run: node --test tests/deploy-recovery.test.mjs
       - run: bash -n scripts/deploy-vps.sh
       - run: node --test tests/orders-mysql.test.mjs
         env:

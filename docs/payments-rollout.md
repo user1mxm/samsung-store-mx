@@ -143,7 +143,7 @@ against the production database.
 
 It then stops samsung-store briefly, uses mysqldump to back up the database
 (including routines, triggers and events), applies/verifies only additive schema
-changes, installs the built release and runs local health checks. PAYMENTS_ENABLED
+changes, installs the built release and runs local and HTTPS-domain health checks, including the built asset identity. PAYMENTS_ENABLED
 stays 0. Missing database backup privileges or incompatible schema abort the
 rollout. The original environment, uploads, public files and seed scripts are
 preserved. Source/dependency/bundle backups and private logs are kept under the

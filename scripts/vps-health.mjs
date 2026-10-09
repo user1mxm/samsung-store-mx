@@ -3,7 +3,7 @@ import { spawn } from 'node:child_process';
 import { createServer } from 'node:net';
 import { once } from 'node:events';
 import { setTimeout as delay } from 'node:timers/promises';
-import { openSync, closeSync } from 'node:fs';
+import { openSync, closeSync, readFileSync } from 'node:fs';
 import { runtimeConfig } from './vps-config.mjs';
 
 async function check(origin) {
@@ -23,7 +23,14 @@ async function check(origin) {
 const [mode, live, runtimeFile, backupDir] = process.argv.slice(2);
 let child, fd;
 try {
-  if (mode === 'live') await check('http://127.0.0.1:3001');
+  if (mode === 'domain') {
+    await check('https://samsungstore.com.mx');
+    const html = await (await fetch('https://samsungstore.com.mx/', { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(10000) })).text();
+    const built = readFileSync(new URL('../dist/public/index.html', import.meta.url), 'utf8');
+    const asset = built.match(/src="(\/assets\/[^\"]+\.js)"/)?.[1];
+    assert.ok(asset); assert.ok(html.includes(asset), 'Domain serves a different frontend build');
+  }
+  else if (mode === 'live') await check('http://127.0.0.1:3001');
   else if (mode === 'shadow') {
     const config = runtimeConfig(live, runtimeFile);
     const listener = createServer(); listener.listen(0,'127.0.0.1'); await once(listener,'listening');
