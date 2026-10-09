@@ -193,7 +193,6 @@
   "docs/admin-swipe-release.md": "efe9a1c1d79fcd6e48086ddfaca6f3edb8d9f170c5018575b1043d42b21260ba",
   "tests/admin-auth-mysql.mjs": "9e2a0edfddf601976226fa3d6a781ba94cd4bbe8a1299fc5a6253e88cccf450a",
   "src/components/catalog/ModelSwipeCatalog.tsx": "63bc4978df3dc07a4ed30db8015e2c65c6e7738bb97898199632194b6fe07671",
-  "src/generated/image-manifest.json": "a026716b8bacf27c5c8ffb03a2bbb8c64acc55dd3ef06e66d36ee214e9e1c35b",
   "src/pages/CustomerPortal.tsx": "7222faf91764826ff377db5080c29a3c5896d8efabf296b34265b53c4865cfab",
   "src/pages/AdvisorQuotes.tsx": "129a053df01f464a781cce1e545d38ab9a5bbb7bf2d835b7dc01b6843a618712",
   "src/pages/SharedQuote.tsx": "a946f14f8ee2bacd0192ffcd0a8829e50c5740b7c90afe4813d6dbb962ad47fa",
