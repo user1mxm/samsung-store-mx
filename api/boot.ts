@@ -22,7 +22,8 @@ import { handleUpload, handleServeUpload } from "./upload";
 const app = new Hono<{ Bindings: HttpBindings }>();
 
 registerSecurity(app);
-app.use(bodyLimit({ maxSize: 8 * 1024 * 1024 }));
+app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+app.use("/api/trpc/*",bodyLimit({maxSize:1024*1024}));
 registerCommerceHttp(app);
 registerPaymentWebhooks(app);
 

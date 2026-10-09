@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {bodyLimit} from 'hono/body-limit';
 import { randomUUID,timingSafeEqual } from 'node:crypto';
 import { mkdir,writeFile,readFile,unlink } from 'node:fs/promises';
 import path from 'node:path';
@@ -9,6 +10,7 @@ import { transaction,digest,json } from './core.mjs';
 import { insertReservedOrder,validateItems } from '../orders-service.mjs';
 const privateDir=()=>process.env.SUPPORT_PRIVATE_DIR || path.resolve(process.cwd(),'../samsung-private-support');
 export function registerCommerceHttp(app) {
+  app.use('/api/support/file',bodyLimit({maxSize:6*1024*1024}));
   app.post('/api/support/file',async c=>{
     const user=await getRequestUser(c.req.raw.headers);if(!user)return c.json({error:'Inicia sesión'},401);
     const form=await c.req.formData(); const file=form.get('file');
