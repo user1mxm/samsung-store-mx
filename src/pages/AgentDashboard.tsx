@@ -61,44 +61,8 @@ function StatCard({ icon:Icon, label, value, sub, color=B, trend }:any) {
 }
 
 /* ─── Rate Editor ─── */
-function RateEditor({ subAgent, onSave, saving }:any) {
-  const [rate, setRate] = useState<string>(String(subAgent.customRate ?? 8));
-  const [notes, setNotes] = useState("");
-  const [open, setOpen] = useState(false);
-
-  const handleSave = () => {
-    const n = parseFloat(rate);
-    if (isNaN(n)||n<0||n>25) { toast.error("Tasa entre 0% y 25%"); return; }
-    onSave({ subAgentUserId: subAgent.userId, rate:n, notes });
-    setOpen(false);
-  };
-
-  if (!open) return (
-    <button onClick={()=>setOpen(true)}
-      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-[10px] font-bold hover:bg-blue-100 transition-colors">
-      <Pencil className="w-2.5 h-2.5"/>
-      {subAgent.customRate != null ? `${subAgent.customRate}%` : "8%"}
-    </button>
-  );
-
-  return (
-    <motion.div initial={{opacity:0,scale:0.95}} animate={{opacity:1,scale:1}}
-      className="flex items-center gap-2 bg-white rounded-xl border border-blue-200 p-2 shadow-lg">
-      <div className="relative">
-        <Input value={rate} onChange={e=>setRate(e.target.value)} type="number" min="0" max="25" step="0.5"
-          className="w-20 h-7 text-xs rounded-lg text-center pr-5" />
-        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">%</span>
-      </div>
-      <button onClick={handleSave} disabled={saving}
-        className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center">
-        <Check className="w-3 h-3"/>
-      </button>
-      <button onClick={()=>setOpen(false)}
-        className="w-6 h-6 rounded-full bg-gray-200 text-gray-600 flex items-center justify-center">
-        <X className="w-3 h-3"/>
-      </button>
-    </motion.div>
-  );
+function RateEditor({subAgent}:any) {
+  return <span title="Porcentaje del referente para este vínculo. Solo un administrador puede modificarlo." className="text-xs font-bold text-blue-700">Tasa del referente: {subAgent.customRate??8}%</span>;
 }
 
 /* ─── Sub-agent row ─── */
@@ -172,6 +136,7 @@ export default function AgentDashboard() {
   const { data: products }       = trpc.product.list.useQuery();
   const { data: myReferral }     = trpc.referral.getMyReferral.useQuery();
   const { data: networkData, refetch:refetchNet } = trpc.referral.getMyNetwork.useQuery();
+  const { data: configuredRate } = trpc.adminTools.myAgentRate.useQuery();
   const { data: commissionsData }= trpc.referral.getMyCommissions.useQuery();
   const { data: netStats, refetch:refetchStats } = trpc.referral.getNetworkStats.useQuery();
 
@@ -275,7 +240,7 @@ export default function AgentDashboard() {
                   </div>
                   <div>
                     <p className="text-sm font-black text-gray-900">Nivel {tier.name}</p>
-                    <p className="text-[10px] text-gray-400">{tier.rate}% comisión base · hasta {tier.maxSubs} sub-agentes</p>
+                    <p className="text-[10px] text-gray-400">{configuredRate?.rate==null?"Tasa sin definir":`${configuredRate.rate}% configurado`} · hasta {tier.maxSubs} sub-agentes</p>
                   </div>
                 </div>
                 {nextTier&&(
@@ -499,7 +464,7 @@ export default function AgentDashboard() {
                       <div>
                         <p className="text-sm font-black text-[#1428A0]">${Number(p.price).toLocaleString()}</p>
                         <p className="text-[10px] text-green-600 font-bold">
-                          Tu comisión: ${Math.round(Number(p.price)*0.08).toLocaleString()}
+                          Estimación: {configuredRate?.rate==null?"tasa sin definir":`$${(Number(p.price)*configuredRate.rate/100).toFixed(2)}`}
                         </p>
                       </div>
                       <button onClick={()=>{

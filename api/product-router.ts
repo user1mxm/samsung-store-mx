@@ -1,4 +1,8 @@
 // @ts-nocheck
+import { randomUUID } from 'node:crypto';
+import { previewCatalog,applyCatalog,productFields } from './admin-tools/catalog.mjs';
+import { getOrderPool } from './queries/connection';
+import { transaction,audit } from './commerce/core.mjs';
 import { searchCatalog } from '../src/lib/catalog-search.mjs';
 import { toCents,fromCents } from './payments/money.mjs';
 import { z } from "zod";
@@ -52,16 +56,12 @@ export const productRouter = createRouter({
       rating: z.string().optional(),
       featured: z.enum(["yes","no"]).default("no"),
     }))
-    .mutation(async ({ input }) => {
-      const db = getDb();
-      const values = {
-        ...input,
-        price: fromCents(toCents(input.price)),
-        features: input.features ? JSON.stringify(input.features) : null,
-        specs: input.specs ? JSON.stringify(input.specs) : null,
-      };
-      const inserted = await db.insert(products).values([values]);
-      return { success: true, id: (inserted as any)[0].insertId };
+    .mutation(async ({ input,ctx }) => {
+      const {comparePrice,...data}=input;
+      const rows=[{data:productFields.parse(data)}],pool=getOrderPool();
+      const plan=await previewCatalog(pool,rows);
+      const result=await applyCatalog(pool,ctx.user.id,rows,plan.token,randomUUID());
+      return {success:true,id:result.ids[0]};
     }),
 
   // update completo — soporta todos los campos
@@ -83,22 +83,20 @@ export const productRouter = createRouter({
         featured: z.enum(["yes","no"]).optional(),
       }),
     }))
-    .mutation(async ({ input }) => {
-      const db = getDb();
-      const d: any = { ...input.data };
-      if (d.price !== undefined) d.price = fromCents(toCents(d.price));
-      if (d.comparePrice !== undefined) d.comparePrice = String(d.comparePrice);
-      if (d.features !== undefined) d.features = JSON.stringify(d.features);
-      if (d.specs !== undefined) d.specs = JSON.stringify(d.specs);
-      await db.update(products).set(d).where(eq(products.id, input.id));
-      return { success: true };
+    .mutation(async ({ input,ctx }) => {
+      const {comparePrice,...data}=input.data;
+      const rows=[{id:input.id,data:productFields.parse(data)}],pool=getOrderPool();
+      const plan=await previewCatalog(pool,rows);
+      return applyCatalog(pool,ctx.user.id,rows,plan.token,randomUUID());
     }),
 
   delete: adminQuery
     .input(z.object({ id: z.number() }))
-    .mutation(async ({ input }) => {
-      const db = getDb();
-      await db.delete(products).where(eq(products.id, input.id));
-      return { success: true };
-    }),
+    .mutation(({input,ctx})=>transaction(getOrderPool(),async c=>{
+      await c.execute("INSERT IGNORE INTO storeSettings (name,body) VALUES ('catalogWriteLock','{}')");
+      await c.execute("SELECT name FROM storeSettings WHERE name='catalogWriteLock' FOR UPDATE");
+      await c.execute('DELETE FROM products WHERE id=?',[input.id]);
+      await audit(c,ctx.user.id,'catalog.delete',input.id);
+      return {success:true};
+    })),
 });

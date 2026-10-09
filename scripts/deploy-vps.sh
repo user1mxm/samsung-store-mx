@@ -49,7 +49,7 @@ exec 9>/var/lock/samsung-store-deploy.lock
 flock -n 9 || fail 'Another deployment is running'
 node -e 'const [major,minor]=process.versions.node.split(".").map(Number); if(major<20 || (major===20 && minor<19)) process.exit(1)'
 
-printf '\nCheck the deployed PR20 source baseline\n'
+printf '\nCheck the deployed PR21 source baseline\n'
 node --input-type=module - "$LIVE" "$STAGE/docs/vps-source-manifest.json" <<'NODE'
 import { readFileSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -62,7 +62,7 @@ for(const [path, expected] of Object.entries(JSON.parse(readFileSync(manifest,'u
   } catch { console.error(`Source changed or missing: ${path}`); failed=true; }
 }
 if(failed) process.exit(1);
-console.log('Production baseline matches the reviewed PR20 deployment');
+console.log('Production baseline matches the reviewed PR21 deployment');
 NODE
 
 if test -d "$LIVE/contracts"; then
@@ -81,7 +81,7 @@ if test -d "$LIVE/dist/public"; then
 fi
 cd "$STAGE"
 npm ci --include=dev --no-audit --no-fund
-node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/route-contracts.test.mjs tests/deploy-recovery.test.mjs tests/tv-model.test.mjs tests/commerce.test.mjs
+node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/route-contracts.test.mjs tests/deploy-recovery.test.mjs tests/tv-model.test.mjs tests/commerce.test.mjs tests/admin-tools.test.mjs
 npm run build
 node tests/production-smoke.mjs
 node scripts/vps-db.mjs preflight "$LIVE" "$BACKUP/pm2-runtime.json"

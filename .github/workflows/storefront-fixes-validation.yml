@@ -29,7 +29,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: node --test tests/route-contracts.test.mjs
       - run: node --test tests/deploy-recovery.test.mjs
-      - run: node --test tests/commerce.test.mjs
+      - run: node --test tests/commerce.test.mjs tests/admin-tools.test.mjs
       - run: bash -n scripts/deploy-vps.sh
       - run: node --test tests/orders-mysql.test.mjs
         env:
@@ -45,6 +45,15 @@ jobs:
       - run: node --test tests/commerce-mysql.test.mjs
         env:
           MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
+      - run: node --test tests/admin-tools-mysql.mjs
+        env:
+          MYSQL_TEST_URL: mysql://root:fixture-password@127.0.0.1:3306/samsung_store_test
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: admin-guide-evidence
+          path: test-artifacts/admin-guide
+          if-no-files-found: ignore
       - run: sudo apt-get update && sudo apt-get install -y default-mysql-client
       - run: node tests/monitor-backup.mjs
         env:

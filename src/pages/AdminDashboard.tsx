@@ -538,7 +538,7 @@ export default function AdminDashboard() {
 
   return (
     <>
-    <a className="block bg-[#1428A0] text-white px-6 py-3 text-center font-bold" href="/admin/operaciones">Abrir control maestro: operación, seguridad y posventa →</a>
+    <div className="flex flex-wrap bg-[#1428A0] text-white justify-center"><a className="px-6 py-3 text-center font-bold" href="/admin/catalogo">Catálogo por lotes y porcentajes →</a><a className="px-6 py-3 text-center" href="/admin/operaciones">Operación, seguridad y posventa →</a></div>
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-40">

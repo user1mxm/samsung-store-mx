@@ -134,35 +134,9 @@ export const referralRouter = createRouter({
   }),
 
   /* ─── EMBAJADOR: Modificar comisión de un sub-agente ─── */
-  setSubAgentRate: authedQuery
-    .input(z.object({
-      subAgentUserId: z.number(),
-      rate: z.number().min(0).max(25), // máximo 25%
-      notes: z.string().optional(),
-    }))
-    .mutation(async ({ input, ctx }) => {
-      const db = getDb();
-      const ambassadorId = Number(ctx.user.id);
-
-      // Verificar que el sub-agente pertenece a este embajador
-      const sub = await db.select().from(referrals)
-        .where(and(eq(referrals.userId, input.subAgentUserId), eq(referrals.referrerId, ambassadorId)))
-        .limit(1);
-      if (!sub.length) throw new TRPCError({ code: "FORBIDDEN", message: "Este usuario no es tu sub-agente" });
-
-      // Upsert en ambassador_commissions
-      try {
-        await db.execute(sql`
-          INSERT INTO ambassador_commissions (ambassadorId, subAgentId, rate, notes)
-          VALUES (${ambassadorId}, ${input.subAgentUserId}, ${input.rate}, ${input.notes ?? null})
-          ON DUPLICATE KEY UPDATE rate = ${input.rate}, notes = ${input.notes ?? null}
-        `);
-      } catch (e: any) {
-        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Error guardando tasa: " + e.message });
-      }
-
-      return { success: true };
-    }),
+  setSubAgentRate: adminQuery
+    .input(z.object({subAgentUserId:z.number(),rate:z.number(),notes:z.string().optional()}))
+    .mutation(async()=>{throw new TRPCError({code:'PRECONDITION_FAILED',message:'Usa Catálogo y comisiones para seleccionar el beneficiario, revisar la tasa y registrar el motivo.'});}),
 
   /* ─── EMBAJADOR: Estadísticas de su red ─── */
   getNetworkStats: authedQuery.query(async ({ ctx }) => {
