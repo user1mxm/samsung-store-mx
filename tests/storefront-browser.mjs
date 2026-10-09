@@ -11,7 +11,7 @@ import { chromium } from 'playwright';
 const listener=createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');
 const port=listener.address().port;await new Promise(resolve=>listener.close(resolve));
 const origin=`http://127.0.0.1:${port}`;
-const server=spawn(process.execPath,['dist/boot.js'],{env:{...process.env,NODE_ENV:'production',BIND_HOST:'127.0.0.1',PORT:String(port),APP_ID:'browser-fixture',APP_SECRET:'fixture-only',DATABASE_URL:'mysql://test:test@127.0.0.1:1/test',PAYMENTS_ENABLED:'0'},stdio:['ignore','pipe','pipe']});
+const server=spawn(process.execPath,['dist/boot.js'],{env:{...process.env,NODE_ENV:'production',BIND_HOST:'127.0.0.1',PORT:String(port),APP_ID:'browser-fixture',APP_SECRET:'fixture-only',KIMI_AUTH_URL:'https://example.invalid',KIMI_OPEN_URL:'https://example.invalid',DATABASE_URL:'mysql://test:test@127.0.0.1:1/test',PAYMENTS_ENABLED:'0'},stdio:['ignore','pipe','pipe']});
 let output='';server.stdout.on('data',d=>output+=d);server.stderr.on('data',d=>output+=d);
 let browser;
 const products=[
