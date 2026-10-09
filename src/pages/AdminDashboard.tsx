@@ -468,7 +468,7 @@ export default function AdminDashboard() {
   const updateCommission = trpc.agent.updateCommission.useMutation({ onSuccess:()=>toast.success("Comisión actualizada") });
 
   /* derived */
-  const totalRevenue  = (orders||[]).reduce((s,o)=>s+Number(o.total||0),0);
+  const totalRevenue  = (orders||[]).filter(o=>['processing','shipped','delivered'].includes(o.status)).reduce((s,o)=>s+Number(o.total||0),0);
   const pendingOrders = (orders||[]).filter(o=>o.status==="pending").length;
   const lowStock      = (products||[]).filter(p=>Number(p.stock)<5).length;
 

@@ -1,4 +1,5 @@
 // @ts-nocheck
+import {bodyLimit} from 'hono/body-limit';
 const attempts=new Map();
 export function registerSecurity(app) {
   app.use('*',async(c,next)=>{
@@ -23,6 +24,7 @@ export function registerSecurity(app) {
     }
     await next();
   });
+  app.use('/api/security/csp-report',bodyLimit({maxSize:8192}));
   app.post('/api/security/csp-report',async c=>{
     if(Number(c.req.header('Content-Length')||0)>8192)return c.body(null,413);
     const body=await c.req.text();if(body.length>8192)return c.body(null,413);

@@ -43,11 +43,11 @@ export async function redeem(pool,userId,benefitId) {
     await c.execute('INSERT INTO rewardLedger (userId,eventKey,points,reason) VALUES (?,?,?,?)',[userId,`redeem:${id}`,-benefit.points,benefit.name]); return {id,benefit};
   });
 }
-export function serviceDates(zone,now=new Date()) { return Array.from({length:14},(_,i)=>new Date(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate()+Number(zone.daysAhead)+i)).toISOString().slice(0,10)); }
+export function serviceDates(zone,now=new Date()) { const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/Mexico_City',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);const value=Object.fromEntries(parts.map(p=>[p.type,p.value]));return Array.from({length:14},(_,i)=>new Date(Date.UTC(Number(value.year),Number(value.month)-1,Number(value.day)+Number(zone.daysAhead)+i)).toISOString().slice(0,10)); }
 export async function serviceAvailability(pool,postalCode) {
   const [zones]=await pool.execute('SELECT * FROM serviceZones WHERE postalCode=? AND active=1',[postalCode]); const zone=zones[0]; if(!zone) return null;
   const dates=serviceDates(zone); const [booked]=await pool.execute("SELECT serviceDate,COUNT(*) AS used FROM serviceBookings WHERE zoneId=? AND status<>'cancelled' AND serviceDate BETWEEN ? AND ? GROUP BY serviceDate",[zone.id,dates[0],dates.at(-1)]);
-  return {...zone,dates:dates.map(date=>({date,available:Math.max(0,zone.dailyCapacity-Number(booked.find(b=>new Date(b.serviceDate).toISOString().slice(0,10)===date)?.used||0))}))};
+  return {...zone,dates:dates.map(date=>({date,available:Math.max(0,zone.dailyCapacity-Number(booked.find(b=>(typeof b.serviceDate==='string'?b.serviceDate.slice(0,10):[b.serviceDate.getFullYear(),String(b.serviceDate.getMonth()+1).padStart(2,'0'),String(b.serviceDate.getDate()).padStart(2,'0')].join('-'))===date)?.used||0))}))};
 }
 export async function reserveService(c,userId,orderId,selection,shippingPostalCode) {
   const [zones]=await c.execute('SELECT * FROM serviceZones WHERE id=? AND active=1 FOR UPDATE',[selection.zoneId]); const zone=zones[0];

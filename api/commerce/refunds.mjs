@@ -4,7 +4,9 @@ import { toCents } from '../payments/money.mjs';
 export async function providerRefund(refund,config,fetcher=fetch) {
   const stripe=refund.provider==='stripe';
   if(stripe?!/^pi_[a-zA-Z0-9]+$/.test(refund.paymentId):!/^\d+$/.test(refund.paymentId))throw new Error('Identificador de pago inválido');
-  const body=stripe?new URLSearchParams({payment_intent:refund.paymentId,amount:String(refund.amountCents),reason:'requested_by_customer'}):JSON.stringify({amount:refund.amountCents/100});
+  if(stripe?!config.secretKey:!config.accessToken)throw new Error('Proveedor sin credenciales');
+  if(!stripe){const paymentResponse=await fetcher(`https://api.mercadopago.com/v1/payments/${refund.paymentId}`,{headers:{Authorization:`Bearer ${config.accessToken}`},signal:AbortSignal.timeout(15000)});if(!paymentResponse.ok)throw new Error('No se pudo verificar el pago');const payment=await paymentResponse.json();if(payment.currency_id!=='MXN'||payment.status!=='approved'||toCents(payment.transaction_amount)!==refund.amountCents||Number(payment.transaction_amount_refunded||0)!==0)throw new Error('Pago inconsistente o ya reembolsado');}
+  const body=stripe?new URLSearchParams({payment_intent:refund.paymentId,amount:String(refund.amountCents),reason:'requested_by_customer','metadata[store_refund_id]':refund.id}):JSON.stringify({amount:refund.amountCents/100});
   const headers=stripe?{Authorization:`Bearer ${config.secretKey}`,'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':`refund-${refund.id}`}:{Authorization:`Bearer ${config.accessToken}`,'Content-Type':'application/json','X-Idempotency-Key':refund.id};
   const url=stripe?'https://api.stripe.com/v1/refunds':`https://api.mercadopago.com/v1/payments/${refund.paymentId}/refunds`;
   const res=await fetcher(url,{method:'POST',headers,body,signal:AbortSignal.timeout(15000)});
@@ -45,8 +47,9 @@ export async function reconcileRefund(pool,id,config,fetcher=fetch) {
   const stripe=r.provider==='stripe'; const key=stripe?config.secretKey:config.accessToken;
   // GET only: ambiguous requests never issue another refund POST.
   const url=stripe?`https://api.stripe.com/v1/refunds?payment_intent=${encodeURIComponent(r.paymentId)}&limit=100`:`https://api.mercadopago.com/v1/payments/${r.paymentId}/refunds`;
+  if(!stripe){const paymentResponse=await fetcher(`https://api.mercadopago.com/v1/payments/${r.paymentId}`,{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(15000)});if(!paymentResponse.ok)throw new Error('Proveedor no disponible');const payment=await paymentResponse.json();if(payment.currency_id!=='MXN'||toCents(payment.transaction_amount)!==Number(r.amountCents))throw new Error('Pago inconsistente');}
   const response=await fetcher(url,{headers:{Authorization:`Bearer ${key}`},signal:AbortSignal.timeout(15000)});if(!response.ok)throw new Error('Proveedor no disponible');const body=await response.json();const list=stripe?body.data:body;
-  const match=Array.isArray(list)?list.find(x=>stripe?x.status==='succeeded'&&x.payment_intent===r.paymentId&&x.currency==='mxn'&&x.amount===Number(r.amountCents):x.status==='approved'&&String(x.payment_id)===r.paymentId&&toCents(x.amount)===Number(r.amountCents)):null;
+  const match=Array.isArray(list)?list.find(x=>stripe?x.status==='succeeded'&&x.metadata?.store_refund_id===r.id&&x.payment_intent===r.paymentId&&x.currency==='mxn'&&x.amount===Number(r.amountCents):x.status==='approved'&&String(x.payment_id)===r.paymentId&&toCents(x.amount)===Number(r.amountCents)):null;
   if(!match) return {state:'review'};
   await pool.execute("UPDATE paymentRefunds SET state='received',providerRefundId=? WHERE id=?",[String(match.id),id]);await finalizeRefund(pool,id);return {state:'confirmed'};
 }

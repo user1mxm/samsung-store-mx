@@ -30,7 +30,7 @@ Después del deploy, ejecutar como root:
 bash /opt/samsung-store-mx/scripts/install-monitoring.sh
 ```
 
-El instalador sólo programa las tareas después de restaurar un respaldo en un esquema temporal con nombre aleatorio. Los logs/dumps quedan privados en /opt/samsung-backups/operations. El respaldo de datos del monitor omite rutinas, eventos y triggers; el respaldo completo previo al deploy los conserva. Archivos privados de soporte y uploads se deben incluir en el respaldo externo de archivos del VPS. No se envían avisos a destinatarios externos no configurados.
+El instalador sólo programa las tareas después de restaurar un respaldo en un esquema temporal con nombre aleatorio. Los logs/dumps quedan privados en /opt/samsung-backups/operations. El respaldo de datos del monitor omite rutinas, eventos y triggers; el respaldo completo previo al deploy los conserva. También archiva uploads locales y evidencia privada y verifica la lectura del tar; almacenamiento S3 requiere la política de respaldos del bucket. Copia los respaldos a un destino externo para recuperación ante pérdida del VPS. No se envían avisos a destinatarios externos no configurados.
 
 En Seguridad registrar passkey con contraseña actual; no se deshabilita el login con contraseña. En Unidades introducir rutas /uploads/ o /media/ obtenidas del cargador de imágenes del panel general. En Entregas publicar CPs, precio en centavos y capacidad. En Recompensas activar una regla explícita y beneficios.
 
