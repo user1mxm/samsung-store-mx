@@ -4,11 +4,8 @@
    Estructura limpia, balanceada, sin errores de JSX
    ═══════════════════════════════════════════════════════════ */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
-import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion'
-import useEmblaCarousel from 'embla-carousel-react'
-import Autoplay from 'embla-carousel-autoplay'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Toaster, toast } from 'sonner'
-import confetti from 'canvas-confetti'
 import Marquee from 'react-fast-marquee'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -19,6 +16,8 @@ import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { trpc } from '@/providers/trpc'
 import { useAuth } from '@/hooks/useAuth'
+import { preferredViewerProduct } from '@/lib/tv-model.mjs'
+import { TV3DViewer } from '@/components/home/TV3DViewer'
 import { stockLimit, clampQuantity, restoreCart, reconcileCart, catalogPriceCeiling } from '@/lib/cart-safety.mjs'
 import { useNavigate } from 'react-router'
 import {
@@ -33,7 +32,7 @@ import {
 
 /* ─── Componentes home ─── */
 import {
-  AnimatedCounter, SkeletonCard, ShimmerImage, VRViewer, TV3DViewer,
+  AnimatedCounter, SkeletonCard, ShimmerImage,
   AIChatWidget, CountdownTimer, SocialProofToasts, VoiceSearch, FloatingCartBar,
   TiltCard, TypewriterText, TestimonialCarousel, ScrollProgress, BackToTop,
   SpecSheet, StockPulse, SizeSelector, InnovationBanner, HelpButton,
@@ -82,32 +81,6 @@ function SwipeCatalogSection({
   onSpecSheet: (p: any) => void
   onQuickView: (p: any) => void
 }) {
-  const [selectedIndex, setSelectedIndex] = useState(0)
-  const [prevEnabled, setPrevEnabled] = useState(false)
-  const [nextEnabled, setNextEnabled] = useState(true)
-
-  const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: false, align: 'start', slidesToScroll: 1, containScroll: 'trimSnaps' },
-    [Autoplay({ delay: 4000, stopOnInteraction: true })]
-  )
-
-  const onSelect = useCallback(() => {
-    if (!emblaApi) return
-    setSelectedIndex(emblaApi.selectedScrollSnap())
-    setPrevEnabled(emblaApi.canScrollPrev())
-    setNextEnabled(emblaApi.canScrollNext())
-  }, [emblaApi])
-
-  useEffect(() => {
-    if (!emblaApi) return
-    emblaApi.on('select', onSelect)
-    emblaApi.on('reInit', onSelect)
-    onSelect()
-  }, [emblaApi, onSelect])
-
-  const scrollPrev = useCallback(() => emblaApi?.scrollPrev(), [emblaApi])
-  const scrollNext = useCallback(() => emblaApi?.scrollNext(), [emblaApi])
-
   if (loading) {
     return (
       <div className="flex gap-4 overflow-hidden px-4">
@@ -129,26 +102,10 @@ function SwipeCatalogSection({
 
   return (
     <div className="relative">
-      {/* Arrows */}
-      <button onClick={scrollPrev} disabled={!prevEnabled}
-        className={`absolute -left-2 sm:left-0 top-1/3 -translate-y-1/2 z-10 w-10 h-10 rounded-full shadow-lg backdrop-blur flex items-center justify-center transition-all ${
-          prevEnabled ? 'bg-white/90 text-gray-800 hover:scale-110' : 'bg-white/40 text-gray-300 cursor-not-allowed'
-        } ${darkMode ? 'bg-[#1a1a2a]/90 text-white' : ''}`}>
-        <ArrowRight className="w-5 h-5 rotate-180" />
-      </button>
-      <button onClick={scrollNext} disabled={!nextEnabled}
-        className={`absolute -right-2 sm:right-0 top-1/3 -translate-y-1/2 z-10 w-10 h-10 rounded-full shadow-lg backdrop-blur flex items-center justify-center transition-all ${
-          nextEnabled ? 'bg-white/90 text-gray-800 hover:scale-110' : 'bg-white/40 text-gray-300 cursor-not-allowed'
-        } ${darkMode ? 'bg-[#1a1a2a]/90 text-white' : ''}`}>
-        <ArrowRight className="w-5 h-5" />
-      </button>
-
-      {/* Carousel */}
-      <div className="overflow-hidden px-6" ref={emblaRef}>
-        <div className="flex gap-4">
+      <div className="catalog-grid">
           {products.map((product: any) => (
-            <div key={product.id} className="flex-[0_0_85%] sm:flex-[0_0_45%] lg:flex-[0_0_31%] min-w-0">
-              <TiltCard className="h-full">
+            <div key={product.id} className="catalog-item min-w-0">
+              <div className="h-full">
                 <motion.div whileHover={{ y: -8 }} transition={SPRING}
                   className={`group cursor-pointer h-full flex flex-col overflow-hidden rounded-2xl border transition-all duration-300 ${
                     darkMode ? 'bg-[#14141f] border-gray-800/60 hover:border-[#1428A0]/50 shadow-lg shadow-black/20' : 'bg-white border-gray-100 hover:shadow-2xl hover:shadow-blue-900/8'
@@ -160,32 +117,32 @@ function SwipeCatalogSection({
                     <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     {product.featured === 'yes' && (
                       <div className="absolute top-3 left-3 bg-gradient-to-r from-[#1428A0] to-[#0077C8] text-white text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                        <Flame className="w-2.5 h-2.5" /> 2026
+                        <Flame className="w-2.5 h-2.5" /> Destacado
                       </div>
                     )}
                     <div className="absolute top-3 right-3 bg-black/50 backdrop-blur rounded-full px-2 py-0.5">
                       <StockPulse stock={product.stock} featured={product.featured === 'yes'} />
                     </div>
                     {/* Hover actions */}
-                    <div className="absolute top-3 right-3 mt-8 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-3 group-hover:translate-x-0">
-                      <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleWishlist(product.id) }}
+                    <div className="card-quick-actions absolute top-3 right-3 mt-8 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-3 group-hover:translate-x-0">
+                      <motion.button aria-label={`Favorito: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleWishlist(product.id) }}
                         className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
                         <Heart className={`w-3.5 h-3.5 ${wishlist.includes(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
                       </motion.button>
-                      <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleCompare(product.id) }}
+                      <motion.button aria-label={`Comparar: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleCompare(product.id) }}
                         className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
                         <TrendingUp className={`w-3.5 h-3.5 ${compareList.includes(product.id) ? 'text-[#1428A0]' : 'text-gray-600'}`} />
                       </motion.button>
-                      <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onZoom(product) }}
+                      <motion.button aria-label={`Ampliar imagen: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onZoom(product) }}
                         className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
                         <ZoomIn className="w-3.5 h-3.5 text-gray-600" />
                       </motion.button>
-                      <motion.button whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onSpecSheet(product) }}
+                      <motion.button aria-label={`Especificaciones: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onSpecSheet(product) }}
                         className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
                         <Box className="w-3.5 h-3.5 text-gray-600" />
                       </motion.button>
                     </div>
-                    <div className="absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
+                    <div className="card-quick-view absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
                       <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onQuickView(product) }}
                         className="px-3 py-1.5 bg-white/90 backdrop-blur rounded-full text-[10px] font-bold text-[#1428A0] hover:bg-white shadow-lg flex items-center gap-1">
                         <Eye className="w-3 h-3" /> Vista Rapida
@@ -201,7 +158,7 @@ function SwipeCatalogSection({
                         <span className={`text-[10px] font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.rating || '4.5'}</span>
                       </div>
                     </div>
-                    <h3 className={`font-bold text-sm mb-0.5 leading-tight tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>{product.name}</h3>
+                    <h3 className={`font-bold text-sm mb-0.5 leading-tight tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}><button className="text-left" onClick={e => { e.stopPropagation(); onViewProduct(product) }}>{product.name}</button></h3>
                     <p className={`text-[11px] mb-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>{product.model}</p>
                     <p className={`text-xs mb-3 flex-1 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description}</p>
                     <p className="text-xl font-black text-[#1428A0] mb-3 tracking-tight">${Number(product.price).toLocaleString()}<span className="text-[10px] font-normal text-gray-400 ml-1">MXN</span></p>
@@ -212,18 +169,9 @@ function SwipeCatalogSection({
                     </motion.div>
                   </div>
                 </motion.div>
-              </TiltCard>
+              </div>
             </div>
           ))}
-        </div>
-      </div>
-
-      {/* Dots */}
-      <div className="flex justify-center gap-1.5 mt-5">
-        {products.map((_, i) => (
-          <button key={i} onClick={() => emblaApi?.scrollTo(i)}
-            className={`h-1.5 rounded-full transition-all duration-500 ${i === selectedIndex ? 'w-6 bg-[#1428A0]' : darkMode ? 'w-1.5 bg-gray-700' : 'w-1.5 bg-gray-300'}`} />
-        ))}
       </div>
     </div>
   )
@@ -235,9 +183,7 @@ function SwipeCatalogSection({
 export default function Home() {
   const navigate = useNavigate()
   const { user, isAuthenticated, logout } = useAuth()
-  const { scrollYProgress } = useScroll()
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.12], [1, 0])
-  const heroY = useTransform(scrollYProgress, [0, 0.12], [0, -60])
+
 
   /* Dark mode */
   const [darkMode, setDarkMode] = useState(() => {
@@ -403,7 +349,7 @@ export default function Home() {
         onError: error => { toast.error(error.message); refreshCart() },
       })
     }
-    confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 }, colors: ['#1428A0', '#0077C8', '#00BFFF'] })
+
     toast.success(`${product.name} agregado`, { icon: <ShoppingCart className="w-4 h-4" /> })
   }, [cart, isAuthenticated])
 
@@ -447,6 +393,8 @@ export default function Home() {
     })
   }, [])
 
+  const heroProduct = preferredViewerProduct(products || [])
+
   /* Derived values */
   const cartTotal = cart.reduce((sum, i) => sum + Number(i.product.price) * i.quantity, 0)
   const cartCount = cart.reduce((sum, i) => sum + i.quantity, 0)
@@ -456,7 +404,7 @@ export default function Home() {
     let list = (products || []).filter((p: any) => {
       const query = voiceSearchResult || searchQuery
       if (selectedCategory !== 'all' && p.category !== selectedCategory) return false
-      if (query && !p.name.toLowerCase().includes(query.toLowerCase())) return false
+      if (query && !`${p.name} ${p.model || ''}`.toLowerCase().includes(query.toLowerCase().trim())) return false
       const price = Number(p.price)
       if (maxPrice !== null && price > maxPrice) return false
       return true
@@ -486,9 +434,9 @@ export default function Home() {
      RENDER
      ═══════════════════════════════════════════════════════════ */
   return (
-    <div className={`min-h-screen overflow-x-hidden transition-colors duration-500 ${themeClasses} ${darkMode ? 'dark' : ''}`}>
+    <div className={`storefront min-h-screen overflow-x-hidden transition-colors duration-500 ${themeClasses} ${darkMode ? 'dark' : ''}`}>
       <Toaster position="top-center" richColors closeButton />
-      <SocialProofToasts />
+
       <ScrollProgress />
 
       {/* ═══ PROMO TICKER ═══ */}
@@ -507,8 +455,8 @@ export default function Home() {
           <div className="flex items-center justify-between h-[56px]">
             {/* Logo */}
             <button onClick={() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }} className="flex items-center gap-2.5 shrink-0">
-              <img src="/logo-samsung-mx.png" alt="Samsung Store MX" className="w-8 h-8 object-contain" />
-              <div className="hidden sm:block">
+              <img src="/logo-samsung-mx.png" alt="Samsung Store MX" className="w-8 h-8 object-contain" width="32" height="32" />
+              <div className="store-wordmark">
                 <span className={`text-[12px] font-black tracking-[0.12em] leading-none ${darkMode ? 'text-white' : 'text-[#1428A0]'}`}>SAMSUNG</span>
                 <span className={`text-[8px] font-bold tracking-[0.2em] block leading-none mt-0.5 ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>STORE MX</span>
               </div>
@@ -527,14 +475,14 @@ export default function Home() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-0.5">
-              <button onClick={() => setDarkMode(!darkMode)} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+              <button aria-label="Cambiar tema" onClick={() => setDarkMode(!darkMode)} className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                 {darkMode ? <Sun className="w-4 h-4 text-yellow-400" /> : <Moon className="w-4 h-4 text-gray-500" />}
               </button>
-              <button onClick={() => setWishlistOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+              <button aria-label="Favoritos" onClick={() => setWishlistOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                 <Heart className="w-4 h-4 text-gray-500" />
                 {wishlist.length > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center font-bold">{wishlist.length}</span>}
               </button>
-              <button onClick={() => setCartOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
+              <button aria-label={`Carrito: ${cartCount} unidades`} onClick={() => setCartOpen(true)} className="relative w-9 h-9 rounded-full flex items-center justify-center hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                 <ShoppingCart className="w-4 h-4 text-gray-500" />
                 {cartCount > 0 && <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#1428A0] text-white text-[9px] rounded-full flex items-center justify-center font-bold">{cartCount}</span>}
               </button>
@@ -554,7 +502,7 @@ export default function Home() {
                   </button>
                 </div>
               )}
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-gray-100 dark:hover:bg-white/10">
+              <button aria-label={mobileMenuOpen ? "Cerrar menú" : "Abrir menú"} aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden w-9 h-9 rounded-full flex items-center justify-center transition-colors hover:bg-gray-100 dark:hover:bg-white/10">
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
@@ -601,78 +549,35 @@ export default function Home() {
         </AnimatePresence>
       </nav>
 
-      {/* ═══ HERO: VR 360° ═══ */}
-      <motion.section style={{ opacity: heroOpacity, y: heroY }} className="relative overflow-hidden">
-        <div className={`${darkMode ? 'bg-gradient-to-b from-[#0a0a14] via-[#0a0a0f] to-[#0a0a0f]' : 'bg-gradient-to-b from-[#f4f6ff] via-white to-white'}`}>
-          <div className="absolute top-20 right-[10%] w-[500px] h-[500px] bg-[#1428A0]/6 rounded-full blur-[120px] pointer-events-none" />
-          <div className="absolute bottom-0 left-[5%] w-[300px] h-[300px] bg-[#00BFFF]/5 rounded-full blur-[80px] pointer-events-none" />
-
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 sm:pt-12 pb-10 sm:pb-16">
-            {/* Hero Text */}
-            <div className="text-center mb-8 sm:mb-10">
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-gradient-to-r from-[#1428A0]/10 to-[#0077C8]/10 rounded-full mb-4 border border-[#1428A0]/20">
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#1428A0] animate-pulse" />
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1428A0]">Samsung 2024 · FloatLayer Design</span>
-                </div>
-                <h1 className={`text-3xl sm:text-5xl lg:text-6xl font-black leading-[1.05] mb-3 max-w-3xl mx-auto ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                  <TypewriterText texts={products?.[0]?.name ? [products[0].name] : ['Explora el catálogo Samsung']} speed={55} delay={2800} />
-                </h1>
-                <p className={`text-sm max-w-lg mx-auto mb-5 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                  Vista 3D ilustrativa. Arrastra para explorar; consulta la ficha de cada producto para sus especificaciones.
-                </p>
-                <div className="flex flex-wrap items-center justify-center gap-5 mb-2">
-                  {[{ icon: Shield, label: '5 Anos Garantia' }, { icon: Clock, label: '24h Express' }, { icon: Award, label: 'CES 2024' }].map(b => (
-                    <div key={b.label} className="flex items-center gap-1.5 text-gray-400">
-                      <b.icon className="w-3.5 h-3.5 text-[#1428A0]" /><span className="text-[10px] font-medium">{b.label}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            </div>
-
-            {/* VR Viewer */}
-            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.8, delay: 0.2 }}
-              className="max-w-4xl mx-auto">
-              <motion.div animate={{ y: [0, -6, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
-                <TV3DViewer product={products?.[0]} />
-              </motion.div>
-            </motion.div>
-
-            {/* CTAs */}
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 }}
-              className="flex flex-wrap items-center justify-center gap-3 mt-8">
-              <Button className="h-11 px-7 samsung-btn-primary text-xs" onClick={() => scrollTo('#catalogo')}>
-                Ver Catalogo <ArrowRight className="ml-2 w-3.5 h-3.5" />
-              </Button>
-              <Button variant="outline" className={`h-11 px-5 rounded-full text-xs ${darkMode ? 'border-gray-700 text-gray-300' : 'samsung-btn-outline'}`} onClick={() => scrollTo('#tecnologia')}>
-                Innovacion Samsung
-              </Button>
-            </motion.div>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8 }}
-              className="flex flex-wrap items-center justify-center gap-3 mt-4">
-              <ARPhotoPreview productImage={products?.[0]?.imageUrl || '/tv-s95d-real.jpg'} productName={products?.[0]?.name || 'Samsung S95D OLED'} darkMode={darkMode} />
-              <ProductSizeConfigurator />
-            </motion.div>
+      <section className="premium-hero" aria-labelledby="hero-title">
+        <div className="premium-hero-layout">
+          <div className="premium-hero-copy">
+            <p className="premium-eyebrow"><span /> SAMSUNG STORE MX</p>
+            <h1 id="hero-title">El detalle.<br />Desde cualquier<br /><span>perspectiva.</span></h1>
+            <p className="premium-hero-description">Explora el diseño Samsung en un estudio de luz. Gira el televisor, descubre su perfil y encuentra el modelo para tu espacio.</p>
+            <div className="premium-hero-actions"><Button className="samsung-btn-primary" onClick={() => scrollTo('#catalogo')}>Explorar catálogo <ArrowRight size={17} /></Button><button className="premium-text-link" onClick={() => scrollTo('#tecnologia')}>Conoce la tecnología <ArrowUpRight size={16}/></button></div>
+            <div className="premium-hero-facts"><div><span>360°</span><small>Todos los ángulos</small></div><div><span>MXN</span><small>Precios del catálogo</small></div><div><span>Samsung</span><small>Diseño y tecnología</small></div></div>
           </div>
+          <div className="premium-hero-model"><TV3DViewer product={heroProduct} /></div>
         </div>
-      </motion.section>
+        <div className="premium-tools-strip"><span>Visualiza antes de elegir</span><ARPhotoPreview productImage={heroProduct?.imageUrl || '/tv-s95d-real.jpg'} productName={heroProduct?.name || 'Samsung'} darkMode={darkMode} /><ProductSizeConfigurator /></div>
+      </section>
 
       {/* ═══ CATALOG ═══ */}
       <section id="catalogo" className={`py-10 sm:py-16 ${darkMode ? 'bg-[#0a0a0f]' : 'bg-[#fafbfc]'}`}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1428A0] mb-2">Lineup 2024</p>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#1428A0] mb-2">Encuentra tu próximo Samsung</p>
             <h2 className={`text-2xl sm:text-4xl font-black mb-2 tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}>Catalogo Samsung</h2>
-            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Descubre la nueva generacion de displays con IA integrada</p>
+            <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Compara modelos, precios y disponibilidad en un solo lugar.</p>
           </div>
 
           {/* Search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6" ref={searchRef}>
             <div className="relative flex-1 max-w-md mx-auto w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input placeholder="Buscar modelos 2026..." value={searchQuery}
+              <Input aria-label="Buscar productos" placeholder="Busca por nombre o modelo..." value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); setVoiceSearchResult('') }}
                 onFocus={() => setShowSuggestions(true)}
                 className={`pl-11 pr-10 h-11 rounded-full text-sm ${darkMode ? 'bg-[#1a1a2a] border-gray-700 text-white' : ''}`} />
@@ -694,7 +599,7 @@ export default function Home() {
           </div>
 
           {/* Filters */}
-          <div className="flex flex-wrap items-center justify-center gap-2 mb-6">
+          <div className="catalog-filters">
             <button onClick={() => setSelectedCategory('all')}
               className={`px-4 py-2 rounded-full text-[11px] font-bold transition-all ${selectedCategory === 'all' ? 'bg-[#1428A0] text-white shadow-md' : pillInactive}`}>
               Todos
@@ -706,13 +611,13 @@ export default function Home() {
               </button>
             ))}
             <div className="relative ml-auto">
-              <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}
+              <select aria-label="Ordenar productos" value={sortBy} onChange={(e) => setSortBy(e.target.value)}
                 className={`appearance-none text-[11px] pl-3 pr-7 h-9 rounded-full border cursor-pointer ${darkMode ? 'bg-[#1a1a2a] border-gray-700 text-gray-300' : 'bg-white border-gray-200 text-gray-600'}`}>
                 {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
               <SortAsc className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" />
             </div>
-            <button onClick={() => setShowFilters(!showFilters)}
+            <button aria-label="Filtrar por precio" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${darkMode ? 'hover:bg-white/10 text-gray-400' : 'hover:bg-gray-100 text-gray-500'}`}>
               <Filter className="w-4 h-4" />
             </button>
@@ -726,7 +631,7 @@ export default function Home() {
                   <p className="text-[11px] font-bold mb-3 text-gray-500 dark:text-gray-400 uppercase tracking-wider">Rango de Precio</p>
                   <div className="flex items-center gap-3">
                     <input type="range" min={0} max={priceCeiling} step={1000} value={maxPrice ?? priceCeiling}
-                      onChange={(e) => setMaxPrice(Number(e.target.value))}
+                      aria-label="Precio máximo" onChange={(e) => setMaxPrice(Number(e.target.value))}
                       className="flex-1 h-2 bg-gray-200 rounded-full appearance-none cursor-pointer accent-[#1428A0]" />
                     <span className="text-xs font-bold text-[#1428A0] w-24 text-right">Hasta ${(maxPrice ?? priceCeiling).toLocaleString()}</span>
                   </div>
@@ -810,8 +715,8 @@ export default function Home() {
               <h3 className="text-xl sm:text-2xl font-black text-white mb-1">Unete a Samsung MX</h3>
               <p className="text-sm text-white/70">Ofertas exclusivas, lanzamientos anticipados y contenido premium.</p>
             </div>
-            <div className="flex gap-2 w-full md:w-auto">
-              <Input placeholder="Tu correo electronico" className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/50 rounded-full min-w-[280px]" />
+            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+              <Input placeholder="Tu correo electronico" className="h-12 bg-white/10 border-white/20 text-white placeholder:text-white/50 rounded-full min-w-0 sm:min-w-[280px]" />
               <Button className="h-12 px-6 bg-white text-[#1428A0] hover:bg-gray-100 rounded-full font-bold text-sm shrink-0">Suscribirse</Button>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { compress } from "hono/compress";
 import type { HttpBindings } from "@hono/node-server";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "./router";
@@ -40,6 +41,17 @@ app.post("/api/upload", handleUpload);
 app.get(`${env.uploadPublicPath}/*`, handleServeUpload);
 
 // tRPC
+app.use("/api/trpc/*", async (c, next) => {
+  const acceptsGzip = (c.req.header("Accept-Encoding") ?? "").split(",").some(part => {
+    const [encoding, ...params] = part.trim().split(";");
+    const quality = params.find(p => p.trim().startsWith("q="));
+    return encoding === "gzip" && (!quality || Number(quality.trim().slice(2)) > 0);
+  });
+  if (acceptsGzip) await compress({ encoding: "gzip" })(c, next);
+  else await next();
+  c.header("Cache-Control", "private, no-store");
+  c.header("Vary", "Accept-Encoding");
+});
 app.use("/api/trpc/*", async (c) => {
   return fetchRequestHandler({
     endpoint: "/api/trpc",

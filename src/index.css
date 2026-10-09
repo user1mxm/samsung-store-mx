@@ -134,3 +134,99 @@ html {
   background: #1428A0;
   color: white;
 }
+
+/* Premium storefront: quiet surfaces, readable type and a dedicated product studio. */
+.storefront { --studio-ink:#17243a; --studio-muted:#667487; background:#f6f7f9; }
+.storefront nav { box-shadow:0 8px 32px #15234108; }
+.storefront nav button { min-height:44px; }
+.premium-hero { padding:56px 28px 20px; background:radial-gradient(ellipse at 74% 14%,#e5ecf8 0,transparent 53%),linear-gradient(145deg,#f9fafc,#f2f4f7); }
+.premium-hero-layout { max-width:1384px; margin:auto; display:grid; grid-template-columns:minmax(300px,.76fr) minmax(0,1.24fr); gap:48px; align-items:center; }
+.premium-hero-copy { padding:8px 0 28px; }
+.premium-eyebrow,.studio-eyebrow { display:inline-flex; align-items:center; gap:9px; font-size:10px; letter-spacing:.18em; font-weight:700; color:#385378; }
+.premium-eyebrow>span,.studio-eyebrow>span { width:6px; height:6px; border-radius:50%; background:#426ced; box-shadow:0 0 0 4px #426ced12; }
+.premium-hero h1 { font-size:clamp(42px,4.35vw,68px); font-weight:800; line-height:1.07; letter-spacing:-.065em; margin:24px 0; color:#152139; }
+.premium-hero h1 span { color:#5879b1; }
+.premium-hero-description { font-size:15px; line-height:1.8; max-width:360px; color:#647187; }
+.premium-hero-actions { display:flex; align-items:center; gap:24px; flex-wrap:wrap; margin-top:30px; }
+.premium-hero-actions>.samsung-btn-primary { height:48px; padding:0 23px; gap:10px; font-size:12px; }
+.premium-text-link { display:flex; align-items:center; gap:6px; font-size:12px; color:#334d77; min-height:44px; font-weight:600; }
+.premium-hero-facts { display:flex; gap:30px; margin-top:38px; padding-top:26px; border-top:1px solid #253c6414; }
+.premium-hero-facts>div { display:flex; flex-direction:column; gap:6px; }
+.premium-hero-facts span { font-size:16px; font-weight:700; color:#263958; }
+.premium-hero-facts small { font-size:10px; color:#768295; }
+.premium-tools-strip { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:12px; max-width:1384px; margin:18px auto 0; padding:14px 0; }
+.premium-tools-strip>span { font-size:11px; color:#738096; margin-right:auto; }
+.tv-viewer { border:1px solid #ffffff; border-radius:26px; overflow:hidden; background:#f0f2f5; box-shadow:0 24px 65px #162a5012,inset 0 1px 0 white; color:#20314b; min-width:0; }
+.tv-viewer-header { padding:24px 25px 0; display:flex; align-items:flex-start; justify-content:space-between; gap:14px; }
+.tv-viewer-header>div { min-width:0; }
+.tv-viewer-header h2 { font-size:15px; line-height:1.5; letter-spacing:-.025em; margin-top:10px; font-weight:700; }
+.tv-viewer-header p { font-size:10px; color:#6d7b8d; line-height:1.6; margin-top:5px; }
+.studio-tag { flex-shrink:0; font-size:9px; background:#fff9; border:1px solid #fff; border-radius:30px; padding:7px 10px; color:#667690; margin-top:2px; }
+.tv-stage { position:relative; height:clamp(280px,31vw,440px); background:radial-gradient(ellipse at 50% 100%,#cfd7e54d,transparent 60%); outline-offset:-3px; }
+.premium-hero-model,.tv-live,.tv-stage { min-width:0; width:100%; }
+.tv-stage canvas { position:absolute; inset:0; display:block; width:100%; height:100%; cursor:grab; }
+.tv-stage canvas:active { cursor:grabbing; }
+.tv-preview,.tv-loading { display:flex; align-items:center; justify-content:center; flex-direction:column; padding-bottom:74px; }
+.tv-poster { width:76%; max-width:580px; aspect-ratio:1.68; position:relative; transform:perspective(1500px) rotateY(-10deg); }
+.tv-poster-screen { position:absolute; inset:0 0 7%; padding:3px 3px 7px; border-radius:4px; background:linear-gradient(135deg,#56606b,#11171d 12%,#1e2329 82%,#747c82); box-shadow:1px 1px 0 #b6bfc7,9px 11px 16px #172e5520,0 40px 35px -28px #162a5066; }
+.tv-poster-screen img { width:100%; height:100%; object-fit:cover; border-radius:2px; }
+.tv-poster-foot { position:absolute; top:92%; height:8%; width:6%; background:linear-gradient(90deg,#333b43,#899199 45%,#3a4046); border-radius:1px 1px 3px 3px; box-shadow:8px 9px 12px #18284221; }
+.tv-poster-foot-left { left:12%; transform:skew(-14deg); }
+.tv-poster-foot-right { right:12%; transform:skew(14deg); }
+.tv-preview-action { position:absolute; bottom:18px; left:12px; right:12px; display:flex; align-items:center; flex-direction:column; gap:10px; }
+.studio-primary { display:flex; align-items:center; justify-content:center; gap:10px; min-height:44px; padding:0 20px; background:#203552; color:white; border-radius:30px; font-size:11px; font-weight:600; box-shadow:0 7px 18px #14274c24; transition:background .2s; }
+.studio-primary:hover { background:#1428a0; }
+.tv-preview-action p,.tv-loading>p { font-size:10px; color:#65748a; text-align:center; }
+.tv-loading>p { position:absolute; bottom:35px; }
+.tv-viewer-note { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 25px; border-top:1px solid #dfe4ec; font-size:9px; color:#7e8999; background:#f8f9fb; }
+.tv-viewer-note a { display:flex; align-items:center; gap:4px; color:#4c658c; white-space:nowrap; }
+.tv-scene-fallback { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; background:#f0f2f5; }
+.tv-scene-fallback p { position:absolute; bottom:20px; font-size:11px; color:#637189; }
+.tv-scene-fallback .tv-preview-action { pointer-events:auto; }
+.tv-scene-fallback .tv-preview-action p { position:static; }
+.tv-gesture-hint { position:absolute; bottom:10px; left:10px; right:10px; pointer-events:none; text-align:center; font-size:9px; color:#708097; }
+.studio-controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between; padding:10px 16px 14px; }
+.studio-view-buttons,.studio-tools,.studio-light-buttons { display:flex; align-items:center; gap:3px; }
+.studio-controls button { display:flex; align-items:center; justify-content:center; min-width:36px; min-height:40px; padding:0 11px; border-radius:11px; color:#62728a; font-size:10px; font-weight:600; }
+.studio-controls button:hover { background:#e2e8f0; }
+.studio-controls button[aria-pressed=true] { background:#fff; color:#203759; box-shadow:0 3px 10px #1d345315; }
+.studio-tools button { padding:0 8px; }
+.studio-night .tv-stage { background:radial-gradient(ellipse at 50% 85%,#35465e,#0e1829 72%); }
+.studio-night .tv-gesture-hint { color:#bcc7d8; }
+.catalog-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:20px; }
+.catalog-item { content-visibility:auto; contain-intrinsic-size:auto 450px; }
+.catalog-item .group { box-shadow:0 4px 16px #18355205; border-color:#e7ebf1; border-radius:20px; }
+.catalog-item .group>div:first-child { background:#f1f3f6; }
+.catalog-item h3 { font-size:14px; line-height:1.4; min-height:40px; }
+.catalog-item .samsung-btn-primary { min-height:44px; font-size:11px; }
+.catalog-item img { object-fit:contain; }
+.catalog-filters { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:28px; }
+.catalog-filters>button { min-height:40px; }
+#catalogo { scroll-margin-top:78px; }
+.storefront :focus-visible { outline:3px solid #6b92eb; outline-offset:3px; }
+.storefront.dark .premium-hero { background:radial-gradient(ellipse at 80% 0,#1b2c45,transparent 70%),#0d1420; }
+.storefront.dark .premium-hero h1 { color:#eff3fa; }
+.storefront.dark .premium-hero-description,.storefront.dark .premium-hero-facts small { color:#9caac0; }
+.storefront.dark .premium-hero-facts span,.storefront.dark .premium-text-link { color:#c0d1ea; }
+.storefront.dark .premium-hero-facts { border-color:#ffffff1a; }
+@media(min-width:1536px) { .premium-hero { padding-top:74px; padding-bottom:34px; } }
+@media(max-width:1199px) { .premium-hero-layout { gap:28px; grid-template-columns:minmax(270px,.8fr) minmax(0,1.2fr); } .catalog-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } .studio-controls { justify-content:center; } .studio-tag { display:none; } }
+@media(max-width:900px) { .premium-hero { padding:34px 22px 18px; } .premium-hero-layout { grid-template-columns:minmax(0,1fr); gap:28px; } .premium-hero-copy { max-width:630px; padding:0; } .premium-hero h1 { font-size:50px; } .premium-hero-description { max-width:520px; }  .premium-hero-facts { margin-top:26px; padding-top:20px; } .tv-stage { height:390px; } .tv-viewer-header { padding:24px 26px 0; } .catalog-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; } }
+@media(max-width:639px) {
+  .store-wordmark { display:block; } .store-wordmark span:first-child { font-size:10px; } .store-wordmark span:last-child { font-size:7px; }
+  .storefront nav>div { padding-left:14px; padding-right:10px; } .storefront nav .w-9 { width:34px; }
+  .premium-hero { padding:30px 16px 8px; } .premium-hero-layout { gap:26px; } .premium-hero h1 { font-size:43px; line-height:1.08; margin:18px 0; } .premium-hero-description { font-size:13px; line-height:1.75; } .premium-hero-actions { gap:14px; margin-top:24px; } .premium-hero-actions>.samsung-btn-primary { height:46px; padding:0 19px; }
+  .premium-hero-facts { gap:26px; margin-top:24px; padding-top:18px; } .premium-hero-facts span { font-size:14px; } .premium-hero-facts small { font-size:9px; }
+  .tv-viewer { border-radius:20px; } .tv-viewer-header { padding:19px 18px 0; } .tv-viewer-header h2 { font-size:13px; } .tv-stage { height:280px; } .tv-poster { width:84%; } .tv-viewer-note { padding:13px 17px; flex-wrap:wrap; font-size:8px; }
+  .studio-controls { padding:8px 10px 12px; gap:4px; } .studio-view-buttons { width:100%; justify-content:center; } .studio-controls button { min-height:44px; padding:0 12px; font-size:11px; } .studio-tools { margin-right:8px; }
+  .premium-tools-strip { justify-content:center; gap:8px; } .premium-tools-strip>span { width:100%; text-align:center; margin:0 0 4px; } .premium-tools-strip button { font-size:10px; padding:8px 11px; }
+  .catalog-grid { grid-template-columns:minmax(0,1fr); gap:18px; } .catalog-item .aspect-\[4\/3\] { aspect-ratio:1.42; } .catalog-item h3 { min-height:0; font-size:16px; } .catalog-item .p-4 { padding:20px; } .catalog-item .samsung-btn-primary { height:46px; font-size:12px; }
+  .catalog-filters { gap:7px; margin-bottom:20px; } .catalog-filters button { font-size:10px; padding-left:12px; padding-right:12px; } .catalog-filters .ml-auto { margin-left:0; }
+  .card-quick-actions { opacity:1; transform:none; } .card-quick-actions button { width:36px; height:36px; } .card-quick-view { opacity:1; }
+  .storefront .fixed[title="Asistente IA Samsung"] { bottom:calc(88px + env(safe-area-inset-bottom)); width:44px; height:44px; right:12px; }
+  .storefront .fixed.bottom-\[88px\] { bottom:calc(142px + env(safe-area-inset-bottom)); width:44px; height:44px; right:12px; }
+  .storefront .fixed.bottom-\[170px\] { display:none; } .storefront .fixed.bottom-0 { padding-bottom:env(safe-area-inset-bottom); }
+  .storefront { padding-bottom:76px; }
+}
+@media(max-width:359px) { .store-wordmark { display:none; } .premium-hero h1 { font-size:38px; } .premium-hero-facts { gap:19px; } }
+@media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation-duration:.01ms!important; animation-iteration-count:1!important; transition-duration:.01ms!important; scroll-behavior:auto!important; } }

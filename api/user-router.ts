@@ -2,11 +2,11 @@ import { z } from "zod";
 import { createRouter, adminQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { users, agents } from "@db/schema";
-import { eq, desc, ne } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export const userRouter = createRouter({
   // Listar todos los usuarios (sin admins excepto el propio)
-  list: adminQuery.query(async ({ ctx }) => {
+  list: adminQuery.query(async () => {
     const db = getDb();
     const rows = await db
       .select({
@@ -50,11 +50,6 @@ export const userRouter = createRouter({
           .where(eq(agents.userId, input.userId))
           .limit(1);
         if (existing.length === 0) {
-          const userRow = await db
-            .select()
-            .from(users)
-            .where(eq(users.id, input.userId))
-            .limit(1);
           const code = `AGENT-${String(input.userId).padStart(3, "0")}`;
           await db.insert(agents).values({
             userId: input.userId,

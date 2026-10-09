@@ -21,6 +21,7 @@ for (const phase of ['database', 'health']) test(`deployment failure during ${ph
     await put(join(stage,'contracts','fixture.txt'),'old');
     await put(join(live,'package.json'),'old-package'); await put(join(live,'package-lock.json'),'old-lock');
     await put(join(stage,'package.json'),'new-package'); await put(join(stage,'package-lock.json'),'new-lock');
+    for(const file of ['index.html','vite.config.ts']) { await put(join(live,file),'old'); await put(join(stage,file),'new'); }
     let script=await readFile(new URL('../scripts/deploy-vps.sh',import.meta.url),'utf8');
     script=script.replaceAll('/opt/samsung-store-mx',live).replaceAll('/opt/samsung-backups',backups).replaceAll('/var/lock/samsung-store-deploy.lock',join(root,'lock'));
     assert.ok(!script.includes('/opt/samsung-store-mx')); assert.ok(!script.includes('/opt/samsung-backups'));

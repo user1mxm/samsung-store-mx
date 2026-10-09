@@ -2,17 +2,17 @@ import nodemailer from "nodemailer";
 import { env } from "./env";
 
 function smtpConfigured() {
-  return !!(env.smtpHost && env.smtpUser && env.smtpPass);
+  return !!(env.smtpHost && env.smtpUser && env.smtpPassword);
 }
 
 function createTransport() {
   return nodemailer.createTransport({
     host: env.smtpHost,
     port: env.smtpPort,
-    secure: env.smtpSecure,
+    secure: env.smtpPort === 465,
     auth: {
       user: env.smtpUser,
-      pass: env.smtpPass,
+      pass: env.smtpPassword,
     },
   });
 }
@@ -32,7 +32,7 @@ const SHELL = (inner: string) => `
 export async function sendTempPasswordEmail(to: string, name: string, tempPassword: string) {
   const transporter = createTransport();
   await transporter.sendMail({
-    from: `"Samsung Store MX" <${env.smtpFrom}>`,
+    from: env.smtpFrom,
     to,
     subject: "Tu contraseña temporal - Samsung Store MX",
     html: `
@@ -58,7 +58,7 @@ export async function sendPasswordResetEmail(to: string, name: string, resetToke
   const transporter = createTransport();
   const resetUrl = `${baseUrl}/change-password?token=${resetToken}`;
   await transporter.sendMail({
-    from: `"Samsung Store MX" <${env.smtpFrom}>`,
+    from: env.smtpFrom,
     to,
     subject: "Restablecer contraseña - Samsung Store MX",
     html: `
@@ -87,7 +87,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
   }
   const transporter = createTransport();
   await transporter.sendMail({
-    from: `"Samsung Store MX" <${env.smtpFrom}>`,
+    from: env.smtpFrom,
     to,
     subject: "¡Bienvenido a Samsung Store MX! 🎉",
     html: SHELL(`
@@ -125,7 +125,7 @@ export async function sendAdminNewUserEmail(user: {
       <td style="padding:8px 0;color:#1a1f2e;font-size:13px;font-weight:600;">${value}</td>
     </tr>`;
   await transporter.sendMail({
-    from: `"Samsung Store MX" <${env.smtpFrom}>`,
+    from: env.smtpFrom,
     to: env.adminNotifyEmail,
     subject: `🔔 Nuevo usuario registrado: ${user.name}`,
     html: SHELL(`
@@ -171,7 +171,7 @@ export async function sendOtpEmail(to: string, code: string) {
   }
   const transporter = createTransport();
   await transporter.sendMail({
-    from: `"Samsung Store MX" <${env.smtpFrom}>`,
+    from: env.smtpFrom,
     to,
     subject: `${code} es tu código de verificación`,
     html: SHELL(`
