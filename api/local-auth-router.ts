@@ -127,8 +127,9 @@ export const localAuthRouter = createRouter({
   /* ─── Login ─── */
   login: publicQuery
     .input(z.object({
-      email: z.string().email(),
-      password: z.string().min(1),
+      email: z.string().trim().toLowerCase().email(),
+      password: z.string().min(1).max(200),
+      isAdmin: z.boolean().default(false),
     }))
     .mutation(async ({ input, ctx }) => {
       const db = getDb();
@@ -137,6 +138,8 @@ export const localAuthRouter = createRouter({
       if (!user || !user.password) throw new Error("Credenciales inválidas");
 
       if (!await verifyPassword(input.password, user.password)) throw new Error("Credenciales inválidas");
+
+      if (input.isAdmin && user.role !== "admin") throw new Error("Esta cuenta no tiene acceso administrativo");
 
       await db.update(users).set({ lastSignInAt: new Date() }).where(eq(users.id, user.id));
       await issueSession(ctx, user.id);

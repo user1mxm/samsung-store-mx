@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════ */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
 import Marquee from 'react-fast-marquee'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import { trpc } from '@/providers/trpc'
 import { useAuth } from '@/hooks/useAuth'
 import { preferredViewerProduct } from '@/lib/tv-model.mjs'
+import SwipeCatalogSection from '@/components/catalog/ModelSwipeCatalog'
 import { TV3DViewer } from '@/components/home/TV3DViewer'
 import { stockLimit, clampQuantity, restoreCart, reconcileCart, catalogPriceCeiling } from '@/lib/cart-safety.mjs'
 import { useNavigate } from 'react-router'
@@ -66,117 +67,6 @@ const SPRING_GENTLE = { type: 'spring' as const, stiffness: 300, damping: 30 }
 /* ═══════════════════════════════════════════════════════════
    SWIPE CATALOG COMPONENT (inline para evitar imports rotos)
    ═══════════════════════════════════════════════════════════ */
-function SwipeCatalogSection({
-  products, loading, darkMode, wishlist, compareList,
-  onToggleWishlist, onToggleCompare, onAddToCart,
-  onViewProduct, onZoom, onSpecSheet, onQuickView,
-}: {
-  products: any[]; loading: boolean; darkMode: boolean
-  wishlist: number[]; compareList: number[]
-  onToggleWishlist: (id: number) => void
-  onToggleCompare: (id: number) => void
-  onAddToCart: (p: any) => void
-  onViewProduct: (p: any) => void
-  onZoom: (p: any) => void
-  onSpecSheet: (p: any) => void
-  onQuickView: (p: any) => void
-}) {
-  if (loading) {
-    return (
-      <div className="flex gap-4 overflow-hidden px-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className={`min-w-[85%] sm:min-w-[45%] lg:min-w-[31%] rounded-2xl h-[420px] ${darkMode ? 'bg-[#1a1a2a]' : 'bg-gray-100'} animate-pulse`} />
-        ))}
-      </div>
-    )
-  }
-
-  if (!products || products.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <Search className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-        <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No se encontraron productos</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative">
-      <div className="catalog-grid">
-          {products.map((product: any) => (
-            <div key={product.id} className="catalog-item min-w-0">
-              <div className="h-full">
-                <motion.div whileHover={{ y: -8 }} transition={SPRING}
-                  className={`group cursor-pointer h-full flex flex-col overflow-hidden rounded-2xl border transition-all duration-300 ${
-                    darkMode ? 'bg-[#14141f] border-gray-800/60 hover:border-[#1428A0]/50 shadow-lg shadow-black/20' : 'bg-white border-gray-100 hover:shadow-2xl hover:shadow-blue-900/8'
-                  }`}
-                  onClick={() => onViewProduct(product)}>
-                  {/* Image */}
-                  <div className="relative aspect-[4/3] overflow-hidden">
-                    <ShimmerImage src={product.imageUrl} alt={product.name} className="aspect-[4/3]" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    {product.featured === 'yes' && (
-                      <div className="absolute top-3 left-3 bg-gradient-to-r from-[#1428A0] to-[#0077C8] text-white text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                        <Flame className="w-2.5 h-2.5" /> Destacado
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3 bg-black/50 backdrop-blur rounded-full px-2 py-0.5">
-                      <StockPulse stock={product.stock} featured={product.featured === 'yes'} />
-                    </div>
-                    {/* Hover actions */}
-                    <div className="card-quick-actions absolute top-3 right-3 mt-8 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-3 group-hover:translate-x-0">
-                      <motion.button aria-label={`Favorito: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleWishlist(product.id) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <Heart className={`w-3.5 h-3.5 ${wishlist.includes(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
-                      </motion.button>
-                      <motion.button aria-label={`Comparar: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleCompare(product.id) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <TrendingUp className={`w-3.5 h-3.5 ${compareList.includes(product.id) ? 'text-[#1428A0]' : 'text-gray-600'}`} />
-                      </motion.button>
-                      <motion.button aria-label={`Ampliar imagen: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onZoom(product) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <ZoomIn className="w-3.5 h-3.5 text-gray-600" />
-                      </motion.button>
-                      <motion.button aria-label={`Especificaciones: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onSpecSheet(product) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <Box className="w-3.5 h-3.5 text-gray-600" />
-                      </motion.button>
-                    </div>
-                    <div className="card-quick-view absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onQuickView(product) }}
-                        className="px-3 py-1.5 bg-white/90 backdrop-blur rounded-full text-[10px] font-bold text-[#1428A0] hover:bg-white shadow-lg flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Vista Rapida
-                      </motion.button>
-                    </div>
-                  </div>
-                  {/* Info */}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-[#1428A0] bg-[#1428A0]/8 px-2 py-0.5 rounded">{product.category}</span>
-                      <div className="flex items-center gap-0.5">
-                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                        <span className={`text-[10px] font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.rating || '4.5'}</span>
-                      </div>
-                    </div>
-                    <h3 className={`font-bold text-sm mb-0.5 leading-tight tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}><button className="text-left" onClick={e => { e.stopPropagation(); onViewProduct(product) }}>{product.name}</button></h3>
-                    <p className={`text-[11px] mb-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>{product.model}</p>
-                    <p className={`text-xs mb-3 flex-1 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description}</p>
-                    <p className="text-xl font-black text-[#1428A0] mb-3 tracking-tight">${Number(product.price).toLocaleString()}<span className="text-[10px] font-normal text-gray-400 ml-1">MXN</span></p>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.95 }}>
-                      <Button className="w-full h-10 samsung-btn-primary text-[11px] font-bold rounded-xl" onClick={(e) => { e.stopPropagation(); onAddToCart(product) }} disabled={product.stock === 0}>
-                        {product.stock === 0 ? 'Agotado' : <><ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Agregar al Carrito</>}
-                      </Button>
-                    </motion.div>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  )
-}
-
 /* ═══════════════════════════════════════════════════════════
    MAIN HOME COMPONENT
    ═══════════════════════════════════════════════════════════ */
@@ -435,7 +325,6 @@ export default function Home() {
      ═══════════════════════════════════════════════════════════ */
   return (
     <div className={`storefront min-h-screen overflow-x-hidden transition-colors duration-500 ${themeClasses} ${darkMode ? 'dark' : ''}`}>
-      <Toaster position="top-center" richColors closeButton />
 
       <ScrollProgress />
 
@@ -532,9 +421,9 @@ export default function Home() {
                       className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
                       Mis Pedidos
                     </button>
-                    <button onClick={() => { navigate('/mi-red'); setMobileMenuOpen(false) }}
+                    <button onClick={() => { navigate(user?.role === 'admin' ? '/admin' : user?.role === 'agent' ? '/agent' : '/mi-red'); setMobileMenuOpen(false) }}
                       className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      Mi Red
+                      {user?.role === 'admin' ? 'Panel Admin' : user?.role === 'agent' ? 'Portal Agente' : 'Mi Red'}
                     </button>
                   </>
                 ) : (
@@ -813,7 +702,7 @@ export default function Home() {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Acceso Administrativo</h4>
               <ul className="space-y-2">
-                <li><button onClick={() => navigate('/login')} className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1"><Shield className="w-3 h-3 text-[#00BFFF]" /> Panel Admin</button></li>
+                <li><button onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/login/admin')} className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1"><Shield className="w-3 h-3 text-[#00BFFF]" /> Panel Admin</button></li>
                 <li><span className="text-[9px] text-gray-600">Acceso exclusivo para administradores</span></li>
               </ul>
             </div>
