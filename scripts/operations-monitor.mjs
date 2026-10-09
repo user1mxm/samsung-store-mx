@@ -26,9 +26,11 @@ if(mode==='health'){
 }else if(mode==='backup'){
  const stamp=new Date().toISOString().replace(/[:.]/g,'-'),dump=`${dir}/${stamp}.sql`;
  // No CREATE/USE DATABASE, events, routines or triggers: restore verification cannot target production.
- await child('mysqldump',[...args,'--single-transaction','--quick','--hex-blob','--no-tablespaces','--skip-triggers',database],dump);
+ const gtidOption=execFileSync('mysqldump',['--help'],{encoding:'utf8'}).includes('set-gtid-purged')?['--set-gtid-purged=OFF']:[];
+ await child('mysqldump',[...args,...gtidOption,'--single-transaction','--quick','--hex-blob','--no-tablespaces','--skip-triggers',database],dump);
  if(statSync(dump).size<100)throw new Error('Respaldo vacío');
- const sql=readFileSync(dump,'utf8');if(/(?:^|\n)\s*(CREATE\s+DATABASE|USE\s|CREATE\s+(?:DEFINER\s*=.*?)?(?:EVENT|PROCEDURE|FUNCTION|TRIGGER)\b)/i.test(sql))throw new Error('Dump no apto para verificación aislada');
+ const sql=readFileSync(dump,'utf8');if(/SET\s+@@GLOBAL\./i.test(sql))throw new Error('El dump intenta cambiar variables globales; no se restaura');
+ if(/(?:^|\n)\s*(CREATE\s+DATABASE|USE\s|CREATE\s+(?:DEFINER\s*=.*?)?(?:EVENT|PROCEDURE|FUNCTION|TRIGGER)\b)/i.test(sql))throw new Error('Dump no apto para verificación aislada');
  const scratch='samsung_restore_'+randomBytes(8).toString('hex');
  const verifyUrl=new URL(config.BACKUP_VERIFY_DATABASE_URL||config.DATABASE_URL);
  if(verifyUrl.hostname!==url.hostname || (verifyUrl.port||'3306')!==(url.port||'3306'))throw new Error('La verificación debe usar el mismo servidor MySQL');
