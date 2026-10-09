@@ -32,7 +32,7 @@ bash /opt/samsung-store-mx/scripts/install-monitoring.sh
 
 Si la cuenta de aplicación no permite crear el esquema temporal, configurar BACKUP_VERIFY_DATABASE_URL en .env del VPS con una cuenta de respaldo/verificación del mismo servidor; no ampliar privilegios de la cuenta web. El instalador sólo programa las tareas después de restaurar un respaldo en un esquema temporal con nombre aleatorio. Los respaldos operativos se retienen 30 días; los respaldos previos a despliegues no se eliminan. Los logs/dumps quedan privados en /opt/samsung-backups/operations. El respaldo de datos del monitor omite rutinas, eventos y triggers; el respaldo completo previo al deploy los conserva. También archiva uploads locales y evidencia privada y verifica la lectura del tar; almacenamiento S3 requiere la política de respaldos del bucket. Copia los respaldos a un destino externo para recuperación ante pérdida del VPS. No se envían avisos a destinatarios externos no configurados.
 
-En Seguridad registrar passkey con contraseña actual; no se deshabilita el login con contraseña. En Unidades introducir rutas /uploads/ o /media/ obtenidas del cargador de imágenes del panel general. En Entregas publicar CPs, precio en centavos y capacidad. En Recompensas activar una regla explícita y beneficios.
+En Seguridad registrar passkey con contraseña actual; no se deshabilita el login con contraseña. En Unidades introducir rutas /uploads/ o /media/ obtenidas del cargador de imágenes del panel general. En Entregas publicar CPs, precios en pesos MXN y capacidad. La API guarda y calcula centavos enteros. En Recompensas activar una regla explícita y beneficios.
 
 ## Conector de inventario
 
