@@ -18,6 +18,7 @@ import { Separator } from '@/components/ui/separator'
 import { trpc } from '@/providers/trpc'
 import { useAuth } from '@/hooks/useAuth'
 import { preferredViewerProduct } from '@/lib/tv-model.mjs'
+import StoreFooter from '@/components/StoreFooter'
 import SwipeCatalogSection from '@/components/catalog/ModelSwipeCatalog'
 import { TV3DViewer } from '@/components/home/TV3DViewer'
 import { stockLimit, clampQuantity, restoreCart, reconcileCart, catalogPriceCeiling } from '@/lib/cart-safety.mjs'
@@ -644,109 +645,7 @@ export default function Home() {
       </section>
 
       {/* ═══ FOOTER ═══ */}
-      <footer className="bg-[#0d0d0d] text-white">
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-8">
-            {/* Brand */}
-            <div className="col-span-2 lg:col-span-2">
-              <div className="flex items-center gap-2 mb-4">
-                <img src="/logo-samsung-mx.png" alt="" className="w-10 h-10" />
-                <div>
-                  <span className="text-sm font-black tracking-[0.1em] block">SAMSUNG</span>
-                  <span className="text-[9px] font-bold tracking-[0.2em] text-gray-500 block">STORE MX</span>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mb-4 leading-relaxed max-w-xs">Displays premium con IA integrada para el mercado mexicano. Garantia oficial Samsung 5 anos.</p>
-              <div className="flex gap-2 mb-4">
-                {[Facebook, Instagram, Youtube, Twitter].map((Icon, i) => (
-                  <button key={i} className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center hover:bg-[#1428A0] transition-all hover:scale-110">
-                    <Icon className="w-3.5 h-3.5" />
-                  </button>
-                ))}
-              </div>
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-xs text-gray-500"><MapPin className="w-3 h-3 text-[#00BFFF]" /> CDMX, Mexico</div>
-                <div className="flex items-center gap-2 text-xs text-gray-500"><Phone className="w-3 h-3 text-[#00BFFF]" /> 800-SAMSUNG</div>
-                <div className="flex items-center gap-2 text-xs text-gray-500"><Mail className="w-3 h-3 text-[#00BFFF]" /> soporte@samsung.mx</div>
-              </div>
-            </div>
-
-            {/* Products */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Productos 2026</h4>
-              <ul className="space-y-2">
-                {['S95H OLED', 'S90H OLED', 'QN80H Neo QLED', 'The Frame Pro', 'Odyssey G9', 'QN70H'].map(item => (
-                  <li key={item}>
-                    <span className="text-xs text-gray-500 hover:text-white transition-colors cursor-pointer flex items-center gap-1">
-                      <ArrowUpRight className="w-2.5 h-2.5" />{item}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Soporte</h4>
-              <ul className="space-y-2">
-                {['Centro Ayuda', 'Garantia MX', 'Servicio Tecnico', 'FAQ'].map(item => (
-                  <li key={item}><span className="text-xs text-gray-500 hover:text-white transition-colors cursor-pointer">{item}</span></li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Embajadores */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Embajadores</h4>
-              <ul className="space-y-2">
-                <li><button onClick={() => navigate('/mi-red')} className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1"><Sparkles className="w-3 h-3 text-[#00BFFF]" /> Programa Embajadores</button></li>
-                <li><span className="text-xs text-gray-500">Gana hasta 8% por venta</span></li>
-                <li><span className="text-xs text-gray-500">3 niveles de comisiones</span></li>
-              </ul>
-            </div>
-
-            {/* Admin Access */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Acceso Administrativo</h4>
-              <ul className="space-y-2">
-                <li><button onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/login/admin')} className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1"><Shield className="w-3 h-3 text-[#00BFFF]" /> Panel Admin</button></li>
-                <li><span className="text-[9px] text-gray-600">Acceso exclusivo para administradores</span></li>
-              </ul>
-            </div>
-
-            {/* Account */}
-            <div>
-              <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Cuenta</h4>
-              <ul className="space-y-2">
-                <li>
-                  {isAuthenticated ? (
-                    <div className="space-y-1.5">
-                      <span className="text-xs text-gray-400 block flex items-center gap-1"><Globe className="w-3 h-3" /> {user?.name}</span>
-                      {user?.role === 'admin' && <button onClick={() => navigate('/admin')} className="text-xs text-[#00BFFF] hover:text-white transition-colors flex items-center gap-1">Panel Admin <ExternalLink className="w-2.5 h-2.5" /></button>}
-                      {user?.role === 'agent' && <button onClick={() => navigate('/agent')} className="text-xs text-[#00BFFF] hover:text-white transition-colors flex items-center gap-1">Portal Agente <ExternalLink className="w-2.5 h-3" /></button>}
-                      <button onClick={logout} className="text-xs text-red-400 hover:text-red-300 transition-colors">Cerrar Sesion</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => navigate('/login')} className="text-xs text-[#00BFFF] hover:text-white transition-colors font-bold flex items-center gap-1">Iniciar Sesion <ExternalLink className="w-2.5 h-2.5" /></button>
-                  )}
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Copyright */}
-        <div className="border-t border-white/5">
-          <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-            <p className="text-[10px] text-gray-600"> Samsung Store MX. Todos los derechos reservados.</p>
-            <div className="flex gap-4">
-              <span className="text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer">Privacidad</span>
-              <span className="text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer">Terminos</span>
-              <span className="text-[10px] text-gray-600 hover:text-gray-400 cursor-pointer">Legal</span>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <StoreFooter user={user} isAuthenticated={isAuthenticated} onLogout={logout} onExplore={() => scrollTo('#catalogo')} onTechnology={() => scrollTo('#tecnologia')} />
 
       {/* ═══ FLOATING ELEMENTS ═══ */}
       <AIChatWidget />

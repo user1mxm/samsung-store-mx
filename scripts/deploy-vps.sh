@@ -49,7 +49,7 @@ exec 9>/var/lock/samsung-store-deploy.lock
 flock -n 9 || fail 'Another deployment is running'
 node -e 'const [major,minor]=process.versions.node.split(".").map(Number); if(major<20 || (major===20 && minor<19)) process.exit(1)'
 
-printf '\nCheck the deployed PR19 source baseline\n'
+printf '\nCheck the deployed PR20 source baseline\n'
 node --input-type=module - "$LIVE" "$STAGE/docs/vps-source-manifest.json" <<'NODE'
 import { readFileSync, lstatSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -62,7 +62,7 @@ for(const [path, expected] of Object.entries(JSON.parse(readFileSync(manifest,'u
   } catch { console.error(`Source changed or missing: ${path}`); failed=true; }
 }
 if(failed) process.exit(1);
-console.log('Production baseline matches the reviewed PR19 deployment');
+console.log('Production baseline matches the reviewed PR20 deployment');
 NODE
 
 if test -d "$LIVE/contracts"; then
