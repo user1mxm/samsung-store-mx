@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createPendingOrder, transitionOrder } from '../api/orders-service.mjs';
 import { startCheckout, checkoutStatus, settleCheckout } from '../api/payments/checkout-service.mjs';
+import { migrateAdditions } from '../scripts/vps-db.mjs';
+import { changeCart } from '../api/cart-service.mjs';
 import { randomUUID } from 'node:crypto';
 
 const databaseUrl = process.env.MYSQL_TEST_URL;
@@ -24,7 +26,9 @@ test('MySQL atomic orders and inventory', { skip: !databaseUrl }, async t => {
       for (const statement of sql.split(';').filter(part => part.trim())) await pool.query(statement);
     }
     await pool.query('CREATE TABLE IF NOT EXISTS orderItems (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, orderId BIGINT UNSIGNED NOT NULL, productId BIGINT UNSIGNED NOT NULL, quantity INT NOT NULL, price DECIMAL(10,2) NOT NULL) ENGINE=InnoDB');
+    await pool.query('CREATE TABLE IF NOT EXISTS cartItems (id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, userId BIGINT UNSIGNED NOT NULL, productId BIGINT UNSIGNED NOT NULL, quantity INT NOT NULL) ENGINE=InnoDB');
     async function reset(stock = 1, price = '13400.00') {
+      await pool.query('DELETE FROM cartItems');
       await pool.query('DELETE FROM paymentEvents'); await pool.query('DELETE FROM paymentAttempts');
       await pool.query('DELETE FROM orderItems'); await pool.query('DELETE FROM orders'); await pool.query('DELETE FROM products');
       await pool.execute('INSERT INTO products VALUES (1, ?, ?, ?)', ['TV', price, stock]);
@@ -136,6 +140,35 @@ test('MySQL atomic orders and inventory', { skip: !databaseUrl }, async t => {
       await settleCheckout(pool, 'mercadopago', '123456:approved', payment);
       assert.equal((await checkoutStatus(pool, 1, result.reference)).state, 'paid');
       const [events] = await pool.query('SELECT COUNT(*) AS count FROM paymentEvents'); assert.equal(events[0].count, 1);
+    });
+    await t.test('concurrent cart adds cannot exceed a single exhibition unit', async () => {
+      await reset();
+      const results = await Promise.allSettled([changeCart(pool, 1, 1, 1, 'add'), changeCart(pool, 1, 1, 1, 'add')]);
+      assert.equal(results.filter(r => r.status === 'fulfilled').length, 1);
+      const [rows] = await pool.query('SELECT quantity FROM cartItems');
+      assert.equal(rows.length, 1); assert.equal(rows[0].quantity, 1);
+      const [stock] = await pool.query('SELECT stock FROM products'); assert.equal(stock[0].stock, 1);
+      await assert.rejects(changeCart(pool, 1, 1, 1.5), /Invalid cart/);
+      await assert.rejects(changeCart(pool, 1, 1, 2), /Insufficient stock/);
+      await changeCart(pool, 2, 1, 0);
+      assert.equal((await pool.query('SELECT quantity FROM cartItems'))[0].length, 1);
+    });
+
+    await t.test('cart sets consolidate duplicate historical rows and support deletion', async () => {
+      await reset(3);
+      await pool.query('INSERT INTO cartItems (userId, productId, quantity) VALUES (1,1,1),(1,1,1)');
+      await changeCart(pool, 1, 1, 3);
+      const [rows] = await pool.query('SELECT quantity FROM cartItems');
+      assert.equal(rows.length, 1); assert.equal(rows[0].quantity, 3);
+      await changeCart(pool, 1, 1, 0);
+      assert.equal((await pool.query('SELECT quantity FROM cartItems'))[0].length, 0);
+    });
+    await t.test('deployment migration gate accepts the applied schema repeatedly without changing rows', async () => {
+      await reset();
+      const connection = await pool.getConnection();
+      try { await migrateAdditions(connection); await migrateAdditions(connection); }
+      finally { connection.release(); }
+      const [stock] = await pool.query('SELECT stock FROM products'); assert.equal(stock[0].stock, 1);
     });
   } finally { await pool.end(); }
 });

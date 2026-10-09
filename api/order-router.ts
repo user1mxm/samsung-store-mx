@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createRouter, authedQuery, adminQuery, publicQuery } from "./middleware";
 import { getDb, getOrderPool } from "./queries/connection";
 import { TRPCError } from "@trpc/server";
-import { createPendingOrder, transitionOrder, OrderError } from "./orders-service.mjs";
+import { transitionOrder, OrderError } from "./orders-service.mjs";
 import { paymentConfig } from "./payments/config";
 import { startCheckout, checkoutStatus } from "./payments/checkout-service.mjs";
 import { orders, orderItems } from "@db/schema";
@@ -83,14 +83,8 @@ export const orderRouter = createRouter({
         shippingAddress: z.record(z.string(), z.string().max(500)).optional(),
       })
     )
-    .mutation(async ({ ctx, input }) => {
-      try {
-        // Client-supplied prices and totals are intentionally ignored.
-        return await createPendingOrder(getOrderPool(), ctx.user.id, input);
-      } catch (error) {
-        if (error instanceof OrderError) throw new TRPCError({ code: error.code, message: error.message });
-        throw error;
-      }
+    .mutation(async () => {
+      throw new TRPCError({ code: 'PRECONDITION_FAILED', message: 'Usa el checkout actualizado para crear un pedido' });
     }),
 
   updateStatus: adminQuery

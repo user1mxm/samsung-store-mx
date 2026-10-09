@@ -3,14 +3,13 @@ import type { Context } from "hono";
 import { setCookie, getCookie } from "hono/cookie";
 import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
+import { sendWelcomeClient, sendWelcomeAgent, notifyAdminNewUser } from "./lib/mailer";
 import { env } from "./lib/env";
 import { getSessionCookieOptions } from "./lib/cookies";
 import { Session } from "@contracts/constants";
 import { signSessionToken } from "./kimi/session";
 import { getDb } from "./queries/connection";
-import { users, referrals, agents } from "@db/schema";
-import { sendWelcomeClient, sendWelcomeAgent, notifyAdminNewUser } from "./lib/mailer";
-import { sql } from "drizzle-orm";
+import { users } from "@db/schema";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,7 +44,7 @@ async function upsertSocialUser(params: {
   email: string | null;
   avatar: string | null;
   role: "client" | "agent";
-}): Promise<{userId:number;isNew:boolean;name:string;email:string}> {
+}): Promise<number> {
   const db = getDb();
   const unionId = `${params.provider}-${params.providerUserId}`;
   const email = params.email ?? `${unionId}@oauth.local`;
@@ -53,7 +52,7 @@ async function upsertSocialUser(params: {
   const existing = await db.select().from(users).where(eq(users.unionId, unionId)).limit(1);
   if (existing.length > 0) {
     await db.update(users).set({ lastSignInAt: new Date(), avatar: params.avatar ?? existing[0].avatar }).where(eq(users.unionId, unionId));
-    return { userId: Number(existing[0].id), isNew: false, name: existing[0].name, email: existing[0].email ?? email };
+    return Number(existing[0].id);
   }
 
   const [result] = await db.insert(users).values({
@@ -66,16 +65,23 @@ async function upsertSocialUser(params: {
     emailVerified: !!params.email,
     mustChangePassword: false,
   });
-  const userId = Number(result.insertId);
-  // Auto-create referral profile
-  try {
-    const code = "SAM" + Math.random().toString(36).substring(2, 8).toUpperCase();
-    await db.insert(referrals).values({ userId, referralCode: code, level: 1 });
-    if (params.role === "agent") {
-      await db.insert(agents).values({ userId, code: `AGENT-${String(userId).padStart(3,"0")}`, specialty:"General", status:"online" });
-    }
-  } catch {}
-  return { userId, isNew: true, name: params.name, email };
+  const newUserId = Number(result.insertId);
+  // Send welcome notification in background
+  setImmediate(async () => {
+    try {
+      const db2 = getDb();
+      const { referrals: refs } = await import("../db/schema");
+      const code = "SAM" + Math.random().toString(36).substring(2,8).toUpperCase();
+      await db2.insert(refs).values({ userId: newUserId, referralCode: code, level: 1 }).catch(()=>{});
+      if (params.role === "agent") {
+        await sendWelcomeAgent(email, params.name, code);
+      } else {
+        await sendWelcomeClient(email, params.name);
+      }
+      await notifyAdminNewUser({ name: params.name, email, role: params.role, provider: params.provider });
+    } catch(e) { console.error("[social-auth notif]", e.message); }
+  });
+  return newUserId;
 }
 
 // ── Google ────────────────────────────────────────────────────────────────────
@@ -138,7 +144,7 @@ export async function handleGoogleCallback(c: Context) {
     const profile = await profileRes.json() as { sub: string; name: string; email: string; picture: string };
 
     const role = (decoded.role === "agent" ? "agent" : "client") as "client" | "agent";
-    const result = await upsertSocialUser({
+    const userId = await upsertSocialUser({
       providerUserId: profile.sub,
       provider: "google",
       name: profile.name,
@@ -147,59 +153,7 @@ export async function handleGoogleCallback(c: Context) {
       role,
     });
 
-    const { userId, isNew, name: uName, email: uEmail } = result;
     await issueSession(c, userId);
-    if (isNew) {
-      const _role = (decoded.role === "agent" ? "agent" : "client") as string;
-      setImmediate(async () => {
-        try {
-          const { getDb: _db2 } = await import("./queries/connection");
-          const { referrals: _refs } = await import("../db/schema");
-          const { eq: _eq2 } = await import("drizzle-orm");
-          if (_role === "agent") {
-            const ref = await _db2().select().from(_refs).where(_eq2(_refs.userId, userId)).limit(1);
-            await sendWelcomeAgent(uEmail, uName, ref[0]?.referralCode ?? "");
-          } else {
-            await sendWelcomeClient(uEmail, uName);
-          }
-          await notifyAdminNewUser({ name: uName, email: uEmail, role: _role, provider: "OAuth" });
-        } catch(e:any) { console.error("[social notif]", e.message); }
-      });
-    }
-    if (isNew) {
-      const _role = (decoded.role === "agent" ? "agent" : "client") as string;
-      setImmediate(async () => {
-        try {
-          const { getDb: _db2 } = await import("./queries/connection");
-          const { referrals: _refs } = await import("../db/schema");
-          const { eq: _eq2 } = await import("drizzle-orm");
-          if (_role === "agent") {
-            const ref = await _db2().select().from(_refs).where(_eq2(_refs.userId, userId)).limit(1);
-            await sendWelcomeAgent(uEmail, uName, ref[0]?.referralCode ?? "");
-          } else {
-            await sendWelcomeClient(uEmail, uName);
-          }
-          await notifyAdminNewUser({ name: uName, email: uEmail, role: _role, provider: "OAuth" });
-        } catch(e:any) { console.error("[social notif]", e.message); }
-      });
-    }
-    if (isNew) {
-      const _role = (decoded.role === "agent" ? "agent" : "client") as string;
-      setImmediate(async () => {
-        try {
-          const { getDb: _db2 } = await import("./queries/connection");
-          const { referrals: _refs } = await import("../db/schema");
-          const { eq: _eq2 } = await import("drizzle-orm");
-          if (_role === "agent") {
-            const ref = await _db2().select().from(_refs).where(_eq2(_refs.userId, userId)).limit(1);
-            await sendWelcomeAgent(uEmail, uName, ref[0]?.referralCode ?? "");
-          } else {
-            await sendWelcomeClient(uEmail, uName);
-          }
-          await notifyAdminNewUser({ name: uName, email: uEmail, role: _role, provider: "OAuth" });
-        } catch(e:any) { console.error("[social notif]", e.message); }
-      });
-    }
     return c.redirect("/", 302);
   } catch (err) {
     console.error("[Google OAuth]", err);
@@ -262,7 +216,7 @@ export async function handleFacebookCallback(c: Context) {
     const profile = await profileRes.json() as { id: string; name: string; email?: string; picture?: { data?: { url?: string } } };
 
     const role = (decoded.role === "agent" ? "agent" : "client") as "client" | "agent";
-    const result = await upsertSocialUser({
+    const userId = await upsertSocialUser({
       providerUserId: profile.id,
       provider: "facebook",
       name: profile.name,
@@ -369,7 +323,7 @@ export async function handleTwitterCallback(c: Context) {
     const profile = profileBody.data;
 
     const role = (decoded.role === "agent" ? "agent" : "client") as "client" | "agent";
-    const result = await upsertSocialUser({
+    const userId = await upsertSocialUser({
       providerUserId: profile.id,
       provider: "twitter",
       name: profile.name,

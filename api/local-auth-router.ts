@@ -1,9 +1,9 @@
 // @ts-nocheck
 import { z } from "zod";
-import { createRouter, publicQuery } from "./middleware";
+import { createRouter, publicQuery, authedQuery } from "./middleware";
 import { getDb } from "./queries/connection";
 import { users, referrals, agents } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, gt } from "drizzle-orm";
 import { signSessionToken, verifySessionToken } from "./kimi/session";
 import { env } from "./lib/env";
 import { getSessionCookieOptions } from "./lib/cookies";
@@ -11,13 +11,8 @@ import * as cookie from "cookie";
 import { Session } from "@contracts/constants";
 import { sendWelcomeClient, sendWelcomeAgent, notifyAdminNewUser } from "./lib/mailer";
 
-async function hashPassword(password: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(password + env.appSecret);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-}
+import { hashPassword, verifyPassword } from "./lib/password";
+import { publicUser } from "./lib/public-user.mjs";
 
 function generateReferralCode(): string {
   return "SAM" + Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -141,13 +136,36 @@ export const localAuthRouter = createRouter({
       const user = rows[0];
       if (!user || !user.password) throw new Error("Credenciales inválidas");
 
-      const hashed = await hashPassword(input.password);
-      if (hashed !== user.password) throw new Error("Credenciales inválidas");
+      if (!await verifyPassword(input.password, user.password)) throw new Error("Credenciales inválidas");
 
       await db.update(users).set({ lastSignInAt: new Date() }).where(eq(users.id, user.id));
       await issueSession(ctx, user.id);
 
       return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role, avatar: user.avatar } };
+    }),
+
+  changePassword: authedQuery
+    .input(z.object({ currentPassword: z.string().min(1).max(200), newPassword: z.string().min(6).max(200) }))
+    .mutation(async ({ ctx, input }) => {
+      const db = getDb();
+      const [user] = await db.select().from(users).where(eq(users.id, ctx.user.id)).limit(1);
+      if (!user || !await verifyPassword(input.currentPassword, user.password)) throw new Error("Credenciales inválidas");
+      const password = await hashPassword(input.newPassword);
+      const [result] = await db.update(users).set({ password, mustChangePassword: false, passwordResetToken: null, passwordResetExpiry: null })
+        .where(and(eq(users.id, user.id), eq(users.password, user.password)));
+      if (result.affectedRows !== 1) throw new Error("La contraseña cambió; vuelve a iniciar sesión");
+      return { success: true };
+    }),
+
+  resetPasswordByToken: publicQuery
+    .input(z.object({ token: z.string().min(32).max(255), newPassword: z.string().min(6).max(200) }))
+    .mutation(async ({ input }) => {
+      const db = getDb();
+      const password = await hashPassword(input.newPassword);
+      const [result] = await db.update(users).set({ password, mustChangePassword: false, passwordResetToken: null, passwordResetExpiry: null })
+        .where(and(eq(users.passwordResetToken, input.token), gt(users.passwordResetExpiry, new Date())));
+      if (result.affectedRows !== 1) throw new Error("Enlace inválido o vencido");
+      return { success: true };
     }),
 
   /* ─── Me ─── */
@@ -167,6 +185,6 @@ export const localAuthRouter = createRouter({
       const rows = await db.select().from(users).where(eq(users.unionId, claim.unionId)).limit(1);
       user = rows[0];
     }
-    return user ?? null;
+    return publicUser(user);
   }),
 });

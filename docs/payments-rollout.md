@@ -1,8 +1,8 @@
-# Samsung Store MX: orders and dual payment preparation
+# Samsung Store MX: orders, dual payments and VPS reconciliation
 
 ## Implemented in this branch
 
-The order API calculates MXN totals from locked database product rows, ignoring
+The checkout service calculates MXN totals from locked database product rows, ignoring
 browser prices/totals. Orders, items and stock deductions commit together.
 Cancellation restores inventory once for newly reserved pending orders.
 Historical orders remain unreserved and do not add stock when cancelled.
@@ -97,3 +97,61 @@ payments are in flight without arranging webhook processing and reconciliation.
 - Stripe webhook signatures: https://docs.stripe.com/webhooks/signature
 - Mercado Pago Preferences: https://www.mercadopago.com.mx/developers/es/reference/online-payments/checkout-pro-preferences/create-preference/post
 - Mercado Pago notifications: https://www.mercadopago.com.mx/developers/en/docs/checkout-pro-preferences/payment-notifications
+
+
+## VPS source reconciliation (PR following #16)
+
+The uploaded VPS source is preserved through the actual admin/client login,
+order history, admin user/product/agent pages, referral/withdrawal routes, OAuth
+callbacks, notifications and both CSS 3D viewers. The manifest contains hashes
+of the uploaded source, never credentials or file contents. The new deployment
+refuses source drift instead of overwriting changes made after this snapshot.
+
+Changes found during reconciliation:
+
+- Register the existing admin upload and disk-image handlers in boot.ts, configure
+  their storage fields, and connect the admin image picker to multipart upload
+  instead of storing multi-megabyte data URLs in the database. Keep existing
+  public images and uploads during deployment.
+- Add the missing Nodemailer dependency, pinned at 10.0.16 (Node >=20). SMTP
+  delivery still requires actual server credentials and an end-to-end mail check.
+- Connect the existing change/reset password UI procedures. New hashes use the
+  existing salted scrypt helper; login also accepts legacy hashes. Reset-token
+  consumption and password replacement use conditional atomic updates.
+- Remove password hashes and reset tokens from public identity responses.
+- Bound persisted cart edits with product locks; concurrent additions cannot
+  exceed stock or create duplicate cart rows. Checkout still reserves separately.
+- Keep the live 3D visual, but render catalogue specifications and identify the
+  model/size controls as illustrative. Unknown specifications remain absent.
+- Retire legacy order.create and unverified generateCommissions mutations. The
+  client no longer calls them. Unverified return-URL payment confirmation also
+  remains disabled. Verified, idempotent commission generation is a separate gate.
+
+## VPS deployment
+
+Fetch the exact reviewed PR head into a new staging directory. Run:
+
+```bash
+bash scripts/deploy-vps.sh <reviewed-commit-sha>
+```
+
+The script requires root, verifies the uploaded source hashes and expected PM2
+cwd/script, installs missing rsync/MySQL client packages if needed, builds and
+checks the staged app, verifies InnoDB, and checks a loopback-only shadow process
+against the existing catalogue with payments disabled. No fixture tests run
+against the production database.
+
+It then stops samsung-store briefly, uses mysqldump to back up the database
+(including routines, triggers and events), applies/verifies only additive schema
+changes, installs the built release and runs local health checks. PAYMENTS_ENABLED
+stays 0. Missing database backup privileges or incompatible schema abort the
+rollout. The original environment, uploads, public files and seed scripts are
+preserved. Source/dependency/bundle backups and private logs are kept under the
+printed /opt/samsung-backups/reconciled-* directory.
+
+On failure after stopping the app, it attempts to restore the prior code, bundle
+and dependencies, then restart PM2. It never restores the database automatically:
+additive columns/tables remain compatible with the previous bundle. If recovery
+itself fails, inspect PM2 and the private backup directory before any further
+write. A successful local deployment must still be followed by domain/browser,
+real account, image-upload and sandbox acceptance checks.

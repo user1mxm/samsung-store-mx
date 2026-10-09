@@ -3,8 +3,10 @@ import { Session } from "@contracts/constants";
 import { getSessionCookieOptions } from "./lib/cookies";
 import { createRouter, authedQuery } from "./middleware";
 
+import { publicUser } from "./lib/public-user.mjs";
+
 export const authRouter = createRouter({
-  me: authedQuery.query((opts) => opts.ctx.user),
+  me: authedQuery.query((opts) => publicUser(opts.ctx.user)),
   logout: authedQuery.mutation(async ({ ctx }) => {
     const opts = getSessionCookieOptions(ctx.req.headers);
     ctx.resHeaders.append(
