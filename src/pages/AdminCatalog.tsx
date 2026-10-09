@@ -9,7 +9,7 @@ import { decodeRows,toApiRows,encodeCsv,exportRows,photoMatches } from '@/lib/ca
 import { ArrowLeft,Download,Upload,Plus,CheckCircle2,Search,ExternalLink,Trash2 } from 'lucide-react';
 
 const button='rounded-xl px-4 py-2.5 text-sm font-semibold border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed';
-const primary=button+' bg-[#1428A0] text-white hover:bg-blue-800';
+const primary='rounded-xl px-4 py-2.5 text-sm font-semibold border border-transparent bg-[#1428A0] text-white hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed';
 const input='w-full min-w-0 rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white';
 function download(name,text){const url=URL.createObjectURL(new Blob([text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function RateCard({row,kind,onSaved}) {
