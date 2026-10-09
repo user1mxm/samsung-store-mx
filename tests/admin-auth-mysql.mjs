@@ -82,6 +82,10 @@ try {
   await mutation('passkey.login',{id:loginStart.id,response:authentication});
   assert.equal((await (await page.request.get(origin+'/api/trpc/localAuth.me')).json()).result.data.json.role,'admin');
   await assert.rejects(mutation('passkey.login',{id:loginStart.id,response:authentication}));
+  await page.context().clearCookies();await page.goto(origin+'/login/admin');
+  await page.getByRole('textbox',{name:'Correo administrador'}).fill(emails[0]);
+  await page.getByRole('button',{name:'Ingresar con llave de acceso',exact:true}).click();
+  await page.waitForURL('**/admin');await page.getByText('Panel Administrativo',{exact:true}).waitFor();
   await mutation('passkey.remove',{id:registration.id,password});
   await cdp.send('WebAuthn.removeVirtualAuthenticator',{authenticatorId});
   console.log('Passkey integration passed: real registration/authentication crypto, user verification, one-use challenges, signed cookie, password-confirmed revocation');

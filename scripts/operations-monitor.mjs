@@ -12,7 +12,7 @@ const config={...file,...Object.fromEntries(Object.entries(processInfo.pm2_env).
 const dir=process.env.SAMSUNG_MONITOR_DIR||'/opt/samsung-backups/operations';mkdirSync(dir,{recursive:true,mode:0o700});
 const mode=process.argv[2]||'health';
 const publicOrigin=new URL(config.SITE_ORIGIN||'https://samsungstore.com.mx');if(publicOrigin.protocol!=='https:'&&publicOrigin.hostname!=='localhost')throw new Error('Origen público inválido');
-async function child(command,args,output,input) { const fd=output?openSync(output,'wx',0o600):undefined;const err=output?openSync(output+'.stderr','wx',0o600):undefined;try{const p=spawn(command,args,{env:{...process.env,MYSQL_PWD:decodeURIComponent(new URL(config.DATABASE_URL).password)},stdio:[input===undefined?'ignore':'pipe',fd??'ignore',err??'ignore']});if(input!==undefined)p.stdin.end(input);const code=await new Promise((r,j)=>{p.once('error',j);p.once('exit',r)});if(code!==0)throw new Error(`${command} falló; consulta el log privado`);}finally{if(fd!==undefined)closeSync(fd);if(err!==undefined)closeSync(err);}}
+async function child(command,args,output,input,verifyPassword) { const fd=output?openSync(output,'wx',0o600):undefined;const err=output?openSync(output+'.stderr','wx',0o600):undefined;try{const p=spawn(command,args,{env:{...process.env,MYSQL_PWD:verifyPassword??decodeURIComponent(new URL(config.DATABASE_URL).password)},stdio:[input===undefined?'ignore':'pipe',fd??'ignore',err??'ignore']});if(input!==undefined)p.stdin.end(input);const code=await new Promise((r,j)=>{p.once('error',j);p.once('exit',r)});if(code!==0)throw new Error(`${command} falló; consulta el log privado`);}finally{if(fd!==undefined)closeSync(fd);if(err!==undefined)closeSync(err);}}
 const url=new URL(config.DATABASE_URL);const database=decodeURIComponent(url.pathname.slice(1));if(!/^[a-zA-Z0-9_]+$/.test(database))throw new Error('Nombre de base inválido');
 const args=[`--host=${url.hostname}`,`--port=${url.port||3306}`,`--user=${decodeURIComponent(url.username)}`];
 if(mode==='health'){
@@ -29,10 +29,14 @@ if(mode==='health'){
  await child('mysqldump',[...args,'--single-transaction','--quick','--hex-blob','--no-tablespaces','--skip-triggers',database],dump);
  if(statSync(dump).size<100)throw new Error('Respaldo vacío');
  const sql=readFileSync(dump,'utf8');if(/(?:^|\n)\s*(CREATE\s+DATABASE|USE\s|CREATE\s+(?:DEFINER\s*=.*?)?(?:EVENT|PROCEDURE|FUNCTION|TRIGGER)\b)/i.test(sql))throw new Error('Dump no apto para verificación aislada');
- const scratch='samsung_restore_'+randomBytes(8).toString('hex');const c=await createConnection(config.DATABASE_URL);
+ const scratch='samsung_restore_'+randomBytes(8).toString('hex');
+ const verifyUrl=new URL(config.BACKUP_VERIFY_DATABASE_URL||config.DATABASE_URL);
+ if(verifyUrl.hostname!==url.hostname || (verifyUrl.port||'3306')!==(url.port||'3306'))throw new Error('La verificación debe usar el mismo servidor MySQL');
+ const c=await createConnection(verifyUrl.href);
+ const verifyArgs=[`--host=${verifyUrl.hostname}`,`--port=${verifyUrl.port||3306}`,`--user=${decodeURIComponent(verifyUrl.username)}`];
  try{
   await c.query(`CREATE DATABASE \`${scratch}\``);
-  await child('mysql',[...args,scratch],undefined,sql);
+  await child('mysql',[...verifyArgs,scratch],undefined,sql,decodeURIComponent(verifyUrl.password));
   const [tables]=await c.query('SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA=?',[scratch]);
   for(const name of ['products','orders','orderItems','users','paymentAttempts','storeAudit','productProfiles'])if(!tables.some(r=>r.TABLE_NAME===name))throw new Error('Respaldo sin tabla necesaria');
   const counts={};for(const r of tables){if(!/^[a-zA-Z0-9_]+$/.test(r.TABLE_NAME))throw new Error('Tabla inesperada');const [rows]=await c.query(`SELECT COUNT(*) AS n FROM \`${scratch}\`.\`${r.TABLE_NAME}\``);counts[r.TABLE_NAME]=Number(rows[0].n);}
