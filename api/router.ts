@@ -1,3 +1,4 @@
+import { adminToolsRouter } from './admin-tools/router';
 import { commerceRouter } from './commerce/router';
 import { passkeyRouter } from './commerce/passkeys';
 import { authRouter } from "./auth-router";
@@ -13,6 +14,7 @@ import { userRouter } from "./user-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
+  adminTools: adminToolsRouter,
   commerce: commerceRouter,
   passkey: passkeyRouter,
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),

@@ -1,0 +1,22 @@
+[
+  {
+    "model": "QN65S95DAFXZX",
+    "title": "Pantalla 65\" OLED 4K S95D",
+    "size": "65\"",
+    "refresh_rate": "120Hz (Up to 144Hz)",
+    "resolution": "4K (3,840 x 2,160)",
+    "image_url": "https://images.samsung.com/is/image/samsung/p6pim/mx/qn65s95dafxzx/gallery/mx-oled-s95d-qn65s95dafxzx-540607336?$Q90_684_547_JPG$",
+    "source_url": "https://www.samsung.com/mx/business/tvs/oled-tv/s95d-65-inch-oled-4k-tizen-os-smart-tv-qn65s95dafxzx/",
+    "checked_at": "2026-10-09"
+  },
+  {
+    "model": "UN75DU8000FXZX",
+    "title": "Pantalla 75 pulgadas Crystal UHD 4K DU8000",
+    "size": "75\"",
+    "refresh_rate": "60Hz",
+    "resolution": "4K (3,840 x 2,160)",
+    "image_url": "https://images.samsung.com/is/image/samsung/p6pim/mx/un75du8000fxzx/gallery/mx-crystal-uhd-du8000-un75du8000fxzx-540820098?$Q90_1368_1094_F_JPG$",
+    "source_url": "https://www.samsung.com/mx/tvs/uhd-4k-tv/du8000-75-inch-crystal-uhd-4k-tizen-os-smart-tv-un75du8000fxzx/",
+    "checked_at": "2026-10-09"
+  }
+]
