@@ -19,6 +19,7 @@ import { trpc } from '@/providers/trpc'
 import { useAuth } from '@/hooks/useAuth'
 import { preferredViewerProduct } from '@/lib/tv-model.mjs'
 import StoreFooter from '@/components/StoreFooter'
+import PaymentSimulator from '@/components/payments/PaymentSimulator'
 import SwipeCatalogSection from '@/components/catalog/ModelSwipeCatalog'
 import { TV3DViewer } from '@/components/home/TV3DViewer'
 import { stockLimit, clampQuantity, restoreCart, reconcileCart, catalogPriceCeiling } from '@/lib/cart-safety.mjs'
@@ -874,7 +875,16 @@ export default function Home() {
               <div className="flex justify-between font-black text-sm"><span>Subtotal</span><span>${cartTotal.toLocaleString('es-MX')} MXN</span></div>
             </div>
             {!paymentProviders.length ? (
-              <p role="status" className="text-sm text-gray-600">El pago en línea todavía no está disponible. Tu carrito se conserva; no se ha realizado ningún cobro ni creado un pedido.</p>
+              import.meta.env.VITE_PAYMENT_SIMULATOR === '1' ? (
+                <div className="space-y-3">
+                  <PaymentSimulator amountMXN={cartTotal} />
+                  <Button type="button" variant="outline" className="w-full" onClick={() => { setCheckoutOpen(false); navigate('/demo/pagos'); }}>
+                    Abrir simulador independiente
+                  </Button>
+                </div>
+              ) : (
+                <p role="status" className="text-sm text-gray-600">El pago en línea todavía no está disponible. Tu carrito se conserva; no se ha realizado ningún cobro ni creado un pedido.</p>
+              )
             ) : !isAuthenticated ? (
               <Button className="w-full" onClick={() => navigate('/login')}>Inicia sesión para pagar</Button>
             ) : paymentState ? (
