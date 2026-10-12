@@ -10,6 +10,7 @@ const Login = lazy(() => import('./pages/Login'))
 const AdminLogin = lazy(() => import('./pages/AdminLogin'))
 const ChangePassword = lazy(() => import('./pages/ChangePassword'))
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const AdminCatalog = lazy(() => import('./pages/AdminCatalog'))
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'))
 const NetworkPage = lazy(() => import('./pages/NetworkPage'))
 const OrderHistory = lazy(() => import('./pages/OrderHistory'))
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/cotizacion/:token" element={<SharedQuote />} />
       <Route path="/mi-cuenta" element={user ? <CustomerPortal /> : <Navigate to="/login" />} />
       <Route path="/admin/operaciones" element={user?.role === 'admin' ? <CommerceOperations /> : <Navigate to="/login/admin" />} />
+      <Route path="/admin/catalogo" element={user?.role === 'admin' ? <AdminCatalog /> : <Navigate to="/login/admin" />} />
       <Route path="/login" element={<Login />} />
       <Route path="/webmaster" element={<Navigate to="/admin" replace />} />
       <Route path="/admin/login" element={<Navigate to="/login/admin" replace />} />

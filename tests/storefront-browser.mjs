@@ -74,7 +74,15 @@ try {
     await page.getByText('El pago en línea todavía no está disponible.',{exact:false}).waitFor();
     await page.keyboard.press('Escape');
     await page.goto(origin);
-    await page.getByRole('button',{name:'Panel Admin',exact:true}).click();
+    const footer=page.getByRole('contentinfo');
+    await footer.scrollIntoViewIfNeeded();
+    assert.equal(await footer.evaluate(el=>el.scrollWidth>el.clientWidth),false,'Footer overflows');
+    await footer.getByText('Información de compra y seguimiento',{exact:true}).click();
+    await footer.getByText(/Consulta en la ficha de cada unidad/).waitFor();
+    await footer.getByRole('button',{name:'Explorar modelos',exact:true}).click();
+    await page.waitForFunction(()=>Math.abs(document.querySelector('#catalogo').getBoundingClientRect().top)<200);
+    if(process.env.STOREFRONT_SCREENSHOTS) await footer.screenshot({path:`${process.env.STOREFRONT_SCREENSHOTS}/footer-${viewport.width}.png`});
+    await page.getByRole('link',{name:'Panel Admin',exact:true}).click();
     await page.waitForURL('**/login/admin');
     await page.getByRole('button',{name:'Ingresar al panel'}).waitFor();
     assert.equal(errors.length,0,errors.join('\n'));

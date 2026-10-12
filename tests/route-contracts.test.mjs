@@ -40,3 +40,11 @@ test('authenticated identity responses omit stored password/reset credentials', 
   assert.equal(identity.id, 1); assert.equal(identity.role, 'client');
   assert.equal('password' in identity, false); assert.equal('passwordResetToken' in identity, false);
 });
+
+
+test('catalogue batch and rate endpoints reject anonymous users and non-admin roles',async()=>{
+  for(const identity of [undefined,{id:2,role:'client'},{id:3,role:'agent'}]) {
+    const c=router.createCaller(context(identity));
+    for(const fn of [()=>c.adminTools.catalog(),()=>c.adminTools.rates(),()=>c.adminTools.preview({rows:[{id:1,data:{stock:0}}]}),()=>c.adminTools.applyBatch({rows:[{id:1,data:{stock:0}}],token:'a'.repeat(64),requestId:'8115d41e-bc3d-4cf7-8dca-16c52a310341'}),()=>c.adminTools.saveRate({kind:'agent',userId:3,rate:10,expectedVersion:'x',reason:'Fixture'}),()=>c.referral.setSubAgentRate({subAgentUserId:4,rate:25})]) await assert.rejects(fn,e=>['UNAUTHORIZED','FORBIDDEN'].includes(e.code));
+  }
+});
