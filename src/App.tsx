@@ -14,6 +14,7 @@ const AdminCatalog = lazy(() => import('./pages/AdminCatalog'))
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'))
 const NetworkPage = lazy(() => import('./pages/NetworkPage'))
 const OrderHistory = lazy(() => import('./pages/OrderHistory'))
+const PaymentDemo = lazy(() => import('./pages/PaymentDemo'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 export default function App() {
@@ -31,6 +32,7 @@ export default function App() {
   return (
     <Suspense fallback={accountLoading}><Routes>
       <Route path="/" element={<Home />} />
+      {import.meta.env.VITE_PAYMENT_SIMULATOR === '1' && <Route path="/demo/pagos" element={<PaymentDemo />} />}
       <Route path="/asesoria" element={['admin','agent'].includes(user?.role||'')?<AdvisorQuotes/>:<Navigate to="/login"/>}/>
       <Route path="/cotizacion/:token" element={<SharedQuote />} />
       <Route path="/mi-cuenta" element={user ? <CustomerPortal /> : <Navigate to="/login" />} />
