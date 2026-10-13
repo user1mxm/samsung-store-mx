@@ -22,16 +22,19 @@ export default function PaymentSimulator({ amountMXN, onClose }: { amountMXN: nu
   const [outcome, setOutcome] = useState<Outcome>('approved');
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [error, setError] = useState('');
-  const amountValid = Number.isFinite(amountMXN) && amountMXN > 0 && amountMXN <= 9999999.99;
+  const amountCents = (() => {
+    try { return demoAmountCents(amountMXN); } catch { return null; }
+  })();
+  const amountValid = amountCents !== null;
 
   useEffect(() => { setReceipt(null); setError(''); }, [amountMXN]);
 
   const simulate = () => {
     setError('');
     try {
-      if (!amountValid) throw new Error('Selecciona un producto con importe válido');
+      if (amountCents === null) throw new Error('Selecciona un producto con importe válido');
       setReceipt(demoPaymentResult({
-        provider, outcome, amountCents: demoAmountCents(amountMXN), reference: crypto.randomUUID(),
+        provider, outcome, amountCents, reference: crypto.randomUUID(),
       }));
     } catch (e) {
       setReceipt(null);
@@ -50,7 +53,7 @@ export default function PaymentSimulator({ amountMXN, onClose }: { amountMXN: nu
       </p>
       <div>
         <span className="block text-sm font-semibold">Importe de prueba (MXN)</span>
-        <strong className="text-2xl">{amountValid ? mxn(Math.round(amountMXN * 100)) : 'Sin importe válido'}</strong>
+        <strong className="text-2xl">{amountValid ? mxn(amountCents) : 'Sin importe válido'}</strong>
       </div>
       <fieldset className="space-y-2">
         <legend className="text-sm font-semibold">Selecciona el método</legend>

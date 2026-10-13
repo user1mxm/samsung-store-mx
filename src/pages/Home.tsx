@@ -139,7 +139,8 @@ export default function Home() {
       return /^[a-f0-9-]{36}$/i.test(value || '') ? value! : undefined
     } catch { return undefined }
   })
-  const { data: paymentProviders = [] } = trpc.order.paymentProviders.useQuery()
+  const { data: paymentProvidersData, isSuccess: paymentProvidersLoaded } = trpc.order.paymentProviders.useQuery()
+  const paymentProviders = paymentProvidersData ?? []
   const checkoutMutation = trpc.order.checkout.useMutation()
   const quoteMutation=trpc.commerce.quoteCreate.useMutation()
   const [quoteUrl,setQuoteUrl]=useState('')
@@ -875,7 +876,7 @@ export default function Home() {
               <div className="flex justify-between font-black text-sm"><span>Subtotal</span><span>${cartTotal.toLocaleString('es-MX')} MXN</span></div>
             </div>
             {!paymentProviders.length ? (
-              import.meta.env.VITE_PAYMENT_SIMULATOR === '1' ? (
+              import.meta.env.VITE_PAYMENT_SIMULATOR === '1' && paymentProvidersLoaded ? (
                 <div className="space-y-3">
                   <PaymentSimulator amountMXN={cartTotal} />
                   <Button type="button" variant="outline" className="w-full" onClick={() => { setCheckoutOpen(false); navigate('/demo/pagos'); }}>
