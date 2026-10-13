@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router'
+import { Routes, Route, Navigate, useLocation } from 'react-router'
 import { useAuth } from './hooks/useAuth'
 import Home from './pages/Home'
 const AdvisorQuotes=lazy(()=>import('./pages/AdvisorQuotes'))
@@ -17,11 +17,11 @@ const OrderHistory = lazy(() => import('./pages/OrderHistory'))
 const PaymentDemo = lazy(() => import('./pages/PaymentDemo'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
-export default function App() {
+function StoreApp() {
   const { user, isLoading } = useAuth()
 
   const accountLoading = <div role="status" className="min-h-[50vh] flex items-center justify-center">Cargando tu cuenta…</div>
-  if (isLoading && window.location.pathname !== '/' && window.location.pathname !== '/demo/pagos') {
+  if (isLoading && window.location.pathname !== '/') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1428A0]" />
@@ -32,7 +32,6 @@ export default function App() {
   return (
     <Suspense fallback={accountLoading}><Routes>
       <Route path="/" element={<Home />} />
-      {import.meta.env.VITE_PAYMENT_SIMULATOR === '1' && <Route path="/demo/pagos" element={<PaymentDemo />} />}
       <Route path="/asesoria" element={['admin','agent'].includes(user?.role||'')?<AdvisorQuotes/>:<Navigate to="/login"/>}/>
       <Route path="/cotizacion/:token" element={<SharedQuote />} />
       <Route path="/mi-cuenta" element={user ? <CustomerPortal /> : <Navigate to="/login" />} />
@@ -60,4 +59,13 @@ export default function App() {
       <Route path="*" element={<NotFound />} />
     </Routes></Suspense>
   )
+}
+
+// The opt-in demo is a separate route tree: it never mounts useAuth or its remote query.
+export default function App() {
+  const { pathname } = useLocation()
+  if (import.meta.env.VITE_PAYMENT_SIMULATOR === '1' && pathname === '/demo/pagos') {
+    return <Suspense fallback={<div role="status">Cargando simulador…</div>}><PaymentDemo /></Suspense>
+  }
+  return <StoreApp />
 }
