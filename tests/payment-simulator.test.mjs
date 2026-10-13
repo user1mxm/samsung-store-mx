@@ -40,3 +40,17 @@ test('simulator does not import gateway, network, payment ledger, or webhook mod
   assert.doesNotMatch(source, /\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|axios|ky|Worker|SharedWorker|navigator|globalThis|window|self)\b/);
   assert.doesNotMatch(source, /\b(paymentAttempts|settleCheckout|createStripeCheckout|createMercadoPagoCheckout|webhook)\b/i);
 });
+
+test('standalone demo bypasses remote authentication without bypassing the rest of the store', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const source = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8');
+  const marker = 'export default function App()';
+  assert.equal(source.split(marker).length, 2, 'exactly one top-level routing entry');
+  const [store, demoEntry] = source.split(marker);
+  assert.match(store, /function StoreApp\(\)[\s\S]*?useAuth\(\)/, 'normal store routes still require auth');
+  assert.match(demoEntry, /const \{ pathname \} = useLocation\(\)/);
+  assert.match(demoEntry, /VITE_PAYMENT_SIMULATOR === '1' && pathname === '\/demo\/pagos'/);
+  assert.ok(demoEntry.indexOf('<PaymentDemo />') >= 0 && demoEntry.indexOf('<PaymentDemo />') < demoEntry.indexOf('<StoreApp />'),
+    'demo route must render before the auth-enabled store is mounted');
+  assert.doesNotMatch(demoEntry, /useAuth\(|localAuth\.me|\.useQuery\(/, 'demo entry must not query the API');
+});
