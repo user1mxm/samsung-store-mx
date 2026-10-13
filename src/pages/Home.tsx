@@ -1,4 +1,5 @@
 // @ts-nocheck
+import { searchCatalog } from '@/lib/catalog-search.mjs'
 /* ═══════════════════════════════════════════════════════════
    Samsung Store MX — Home Page
    Estructura limpia, balanceada, sin errores de JSX
@@ -138,12 +139,18 @@ export default function Home() {
   })
   const { data: paymentProviders = [] } = trpc.order.paymentProviders.useQuery()
   const checkoutMutation = trpc.order.checkout.useMutation()
+  const quoteMutation=trpc.commerce.quoteCreate.useMutation()
+  const [quoteUrl,setQuoteUrl]=useState('')
+  const [serviceDate,setServiceDate]=useState(''),[installation,setInstallation]=useState(false)
+  const {data:delivery}=trpc.commerce.service.useQuery({postalCode:shipping.postalCode},{enabled:/^\d{5}$/.test(shipping.postalCode)&&checkoutOpen,retry:false})
+  const selectedDelivery=delivery&&serviceDate?{zoneId:delivery.id,date:serviceDate,installation}:undefined
+  useEffect(()=>{setServiceDate('')},[shipping.postalCode])
   const { data: paymentState, refetch: refreshPayment } = trpc.order.checkoutStatus.useQuery(
     { reference: checkoutReference },
     { enabled: isAuthenticated && paymentProviders.length > 0, retry: false, refetchInterval: checkoutOpen ? 5000 : false },
   )
   useEffect(() => {
-    if (paymentState?.state === 'paid') {
+    if (['paid','cancelled'].includes(paymentState?.state)) {
       try { localStorage.removeItem(`checkout-request-${user?.id}`) } catch { /* Storage may be unavailable. */ }
     }
   }, [paymentState?.state, user?.id])
@@ -154,7 +161,7 @@ export default function Home() {
     if (!cart.length || checkoutMutation.isPending) return
     const provider = paymentProviders.includes(paymentProvider) ? paymentProvider : paymentProviders[0]
     if (!provider) return
-    const payload = { provider, shippingAddress: shipping, items: cart.map(item => ({ productId: item.product.id, quantity: item.quantity })).sort((a, b) => a.productId - b.productId) }
+    const payload = { provider, service:selectedDelivery, shippingAddress: shipping, items: cart.map(item => ({ productId: item.product.id, quantity: item.quantity })).sort((a, b) => a.productId - b.productId) }
     try {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)))
       const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
@@ -283,7 +290,9 @@ export default function Home() {
     })
   }, [])
 
-  const heroProduct = preferredViewerProduct(products || [])
+  const {data:profiles=[]}=trpc.commerce.profiles.useQuery(undefined,{retry:false});
+  const enrichedProducts=useMemo(()=>(products||[]).map(p=>({...p,unitProfile:profiles.find(x=>x.productId===p.id && x.model===p.model)})),[products,profiles]);
+  const heroProduct = preferredViewerProduct(enrichedProducts)
 
   /* Derived values */
   const cartTotal = cart.reduce((sum, i) => sum + Number(i.product.price) * i.quantity, 0)
@@ -291,10 +300,8 @@ export default function Home() {
 
   /* Filtered products */
   const filtered = useMemo(() => {
-    let list = (products || []).filter((p: any) => {
-      const query = voiceSearchResult || searchQuery
+    let list = searchCatalog(enrichedProducts,voiceSearchResult || searchQuery).filter((p: any) => {
       if (selectedCategory !== 'all' && p.category !== selectedCategory) return false
-      if (query && !`${p.name} ${p.model || ''}`.toLowerCase().includes(query.toLowerCase().trim())) return false
       const price = Number(p.price)
       if (maxPrice !== null && price > maxPrice) return false
       return true
@@ -306,9 +313,9 @@ export default function Home() {
       default: break
     }
     return list
-  }, [products, selectedCategory, searchQuery, voiceSearchResult, maxPrice, sortBy])
+  }, [enrichedProducts, selectedCategory, searchQuery, voiceSearchResult, maxPrice, sortBy])
 
-  const compareProducts = useMemo(() => (products || []).filter((p: any) => compareList.includes(p.id)), [products, compareList])
+  const compareProducts = useMemo(() => enrichedProducts.filter((p: any) => compareList.includes(p.id)), [enrichedProducts, compareList])
 
   /* Helpers */
   const scrollTo = (id: string) => {
@@ -331,9 +338,9 @@ export default function Home() {
       {/* ═══ PROMO TICKER ═══ */}
       <div className="bg-[#1428A0] text-white">
         <Marquee speed={40} gradient={false} className="py-1.5">
-          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><Truck className="w-3 h-3" /> Envio gratis +$5,000 MXN</span>
-          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><CreditCard className="w-3 h-3" /> 12 MSI</span>
-          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><BadgeCheck className="w-3 h-3" /> Garantia 5 anos Samsung</span>
+          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><Truck className="w-3 h-3" /> Consulta cobertura de entrega</span>
+          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><CreditCard className="w-3 h-3" /> Pagos seguros al habilitar checkout</span>
+          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><BadgeCheck className="w-3 h-3" /> Consulta garantía por unidad</span>
           <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><Flame className="w-3 h-3 text-orange-400" /> Ofertas Flash <CountdownTimer /></span>
         </Marquee>
       </div>
@@ -449,7 +456,7 @@ export default function Home() {
           </div>
           <div className="premium-hero-model"><TV3DViewer product={heroProduct} /></div>
         </div>
-        <div className="premium-tools-strip"><span>Visualiza antes de elegir</span><ARPhotoPreview productImage={heroProduct?.imageUrl || '/tv-s95d-real.jpg'} productName={heroProduct?.name || 'Samsung'} darkMode={darkMode} /><ProductSizeConfigurator /></div>
+        <div className="premium-tools-strip"><button onClick={()=>navigate('/mi-cuenta')}>Mi cuenta y posventa ↗</button><span>Visualiza antes de elegir</span><ARPhotoPreview productImage={heroProduct?.imageUrl || '/tv-s95d-real.jpg'} productName={heroProduct?.name || 'Samsung'} darkMode={darkMode} /><ProductSizeConfigurator /></div>
       </section>
 
       {/* ═══ CATALOG ═══ */}
@@ -466,7 +473,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6" ref={searchRef}>
             <div className="relative flex-1 max-w-md mx-auto w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input aria-label="Buscar productos" placeholder="Busca por nombre o modelo..." value={searchQuery}
+              <Input aria-label="Buscar productos" placeholder="Ej. 75 pulgadas hasta 20 mil disponibles" value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); setVoiceSearchResult('') }}
                 onFocus={() => setShowSuggestions(true)}
                 className={`pl-11 pr-10 h-11 rounded-full text-sm ${darkMode ? 'bg-[#1a1a2a] border-gray-700 text-white' : ''}`} />
@@ -797,7 +804,9 @@ export default function Home() {
                 ))}
                 <Separator />
                 <div className="flex justify-between items-center py-2"><span className="font-bold text-sm">Subtotal:</span><span className="font-black text-xl text-[#1428A0]">${cartTotal.toLocaleString()} MXN</span></div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2"><Truck className="w-3 h-3" />{cartTotal >= 5000 ? 'Envio gratis!' : `Te faltan $${(5000 - cartTotal).toLocaleString()}`}</div>
+                <p className="text-xs text-gray-500 mb-2">Consulta entrega e instalación por código postal al finalizar.</p>
+                <Button variant="outline" className="w-full mb-2" disabled={quoteMutation.isPending} onClick={async()=>{if(!isAuthenticated){navigate('/login');return}try{const q=await quoteMutation.mutateAsync({items:cart.map(i=>({productId:i.product.id,quantity:i.quantity}))});setQuoteUrl(`${location.origin}/cotizacion/${q.token}`);toast.success('Cotización creada por 48 horas');}catch(e){toast.error(e.message)}}}>Crear cotización compartible</Button>
+                {quoteUrl&&<p className="text-xs break-all"><a href={quoteUrl}>Abrir cotización</a> <button onClick={()=>navigator.clipboard.writeText(quoteUrl).then(()=>toast.success('Enlace copiado'))}>Copiar enlace</button></p>}
                 <Button className="w-full h-12 samsung-btn-primary text-sm" onClick={() => { setCartOpen(false); setCheckoutOpen(true) }}>Ver resumen <ArrowRight className="w-4 h-4 ml-2" /></Button>
               </>
             )}
@@ -909,15 +918,15 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {['Categoria', 'Precio', 'Stock', 'Calificacion', 'Modelo'].map(attr => (
+                  {['Categoria', 'Precio', 'Stock', 'Calificacion', 'Modelo',...Array.from(new Set(compareProducts.flatMap(p=>Object.keys(typeof p.specs==='string'?JSON.parse(p.specs||'{}'):p.specs||{}))))].map(attr => (
                     <tr key={attr} className={`border-b ${darkMode ? 'border-gray-800' : 'border-gray-100'}`}>
                       <td className={`p-2 font-medium sticky left-0 bg-white dark:bg-[#0a0a0f] ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{attr}</td>
                       {compareProducts.map((p: any) => (
                         <td key={p.id} className="p-2 text-center">
                           {attr === 'Precio' ? `$${Number(p.price).toLocaleString()}` :
                            attr === 'Stock' ? `${p.stock} uds` :
-                           attr === 'Calificacion' ? `${p.rating || '4.5'}/5` :
-                           attr === 'Modelo' ? p.model : p.category}
+                           attr === 'Calificacion' ? (p.rating ? `${p.rating}/5` : 'Sin dato') :
+                           attr === 'Modelo' ? p.model : attr === 'Categoria' ? p.category : (typeof p.specs==='string'?JSON.parse(p.specs||'{}'):p.specs||{})[attr] || 'Sin dato'}
                         </td>
                       ))}
                     </tr>
@@ -939,7 +948,7 @@ export default function Home() {
               <div><p className="font-bold text-sm">{aiProduct?.name}</p><p className="text-xs text-gray-500">{aiProduct?.model}</p></div>
             </div>
             <div className="space-y-2">
-              {[{ label: 'Calidad Imagen', val: '98%' }, { label: 'Precio/Valor', val: '94%' }, { label: 'Durabilidad', val: '10+ anos' }, { label: 'Satisfaccion', val: '4.9/5' }, { label: 'Eco Eficiencia', val: '42% mejor' }].map(m => (
+              {[{label:'Modelo',val:aiProduct?.model||'Sin dato'},{label:'Precio MXN',val:aiProduct?.price||'Sin dato'},{label:'Existencias',val:String(aiProduct?.stock??0)}].map(m => (
                 <div key={m.label} className="flex justify-between p-2.5 bg-gray-50 rounded-lg">
                   <span className="text-xs text-gray-600">{m.label}</span>
                   <span className="text-xs font-bold text-[#1428A0]">{m.val}</span>
@@ -973,12 +982,12 @@ export default function Home() {
               <div className="space-y-3">
                 <p role="status" className="text-sm">{paymentState.state === 'paid'
                   ? `Pago verificado. Pedido #${paymentState.orderId}.`
-                  : paymentState.state === 'pending'
+                  : paymentState.state === 'cancelled' ? `Pedido #${paymentState.orderId}: checkout cancelado sin pago.` : paymentState.state === 'pending'
                     ? `Pedido #${paymentState.orderId}: pago pendiente de confirmación.`
                     : `Pedido #${paymentState.orderId}: el intento de pago requiere revisión. No inicies otro pago.`}</p>
                 {paymentState.state === 'pending' && paymentState.url && <Button className="w-full" onClick={() => window.location.assign(paymentState.url)}>Retomar pago</Button>}
                 <Button variant="outline" onClick={() => void refreshPayment()}>Actualizar estado</Button>
-                {paymentState.state === 'paid' && <Button variant="outline" onClick={() => {
+                {['paid','cancelled'].includes(paymentState.state) && <Button variant="outline" onClick={() => {
                   setCheckoutReference(undefined)
                   try { localStorage.removeItem('checkout-reference') } catch { /* Storage may be unavailable. */ }
                 }}>Preparar otra compra</Button>}
@@ -1000,13 +1009,14 @@ export default function Home() {
                         onChange={event => setShipping(previous => ({ ...previous, [key]: event.target.value }))} />
                     </label>
                   ))}
+                  {/^\d{5}$/.test(shipping.postalCode)&&<div className="rounded-xl bg-gray-50 p-3 text-xs">{delivery?<><p>{delivery.label} · Entrega ${Number(delivery.deliveryCents)/100} MXN</p><label><input type="checkbox" checked={installation} onChange={e=>setInstallation(e.target.checked)}/> Instalación +${Number(delivery.installationCents)/100} MXN</label><select required value={serviceDate} onChange={e=>setServiceDate(e.target.value)}><option value="">Selecciona fecha disponible</option>{delivery.dates.filter(d=>d.available>0).map(d=><option key={d.date} value={d.date}>{d.date} · {d.available} cupos</option>)}</select>{serviceDate&&<p>Total con servicio: ${(cartTotal+(Number(delivery.deliveryCents)+(installation?Number(delivery.installationCents):0))/100).toLocaleString('es-MX')} MXN</p>}</>:<p>Sin cobertura de entrega publicada para este código postal. Solicita una cotización antes de pagar.</p>}</div>}
                   <label className="block text-xs">Proveedor de pago
                     <select className="w-full border rounded-md p-2" value={paymentProviders.includes(paymentProvider) ? paymentProvider : paymentProviders[0]} onChange={event => setPaymentProvider(event.target.value)}>
                       {paymentProviders.map(provider => <option key={provider} value={provider}>{provider === 'stripe' ? 'Stripe' : 'Mercado Pago'}</option>)}
                     </select>
                   </label>
                   <p className="text-xs text-gray-500">El precio final se valida al iniciar el pago. Completarás el pago en el sitio del proveedor.</p>
-                  <Button type="submit" className="w-full" disabled={!cart.length}>{checkoutMutation.isPending ? 'Preparando pago…' : 'Continuar al pago seguro'}</Button>
+                  <Button type="submit" className="w-full" disabled={!cart.length || !delivery || !serviceDate}>{checkoutMutation.isPending ? 'Preparando pago…' : 'Continuar al pago seguro'}</Button>
                 </fieldset>
               </form>
             )}

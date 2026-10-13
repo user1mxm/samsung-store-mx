@@ -22,3 +22,6 @@ test('an unrelated size or unknown model never inherits verified 75-inch specifi
   assert.equal(preferredViewerProduct([{id:1,model:'RF29DB9950',name:'Refrigerador'},{id:2,model:'UN75DU8000'}]).id,2);
   assert.equal(preferredViewerProduct([{model:'RF29DB9950',name:'Refrigerador'}]),undefined);
 });
+
+import {tvProfile as configuredProfile} from '../src/lib/tv-model.mjs';
+test('admin dimensions are bound to the saved model and cannot transfer after a model rename',()=>{const unitProfile={model:'QN55TEST',dimensions:{widthMm:1200,heightMm:700,depthMm:30,source:'https://www.samsung.com/mx/'}};assert.equal(configuredProfile({model:'QN55TEST',unitProfile}).width,1.2);assert.equal(configuredProfile({model:'QN65OTHER',unitProfile}).configured,undefined);});

@@ -1,6 +1,7 @@
 import { createConnection } from 'mysql2/promise';
 import { spawn } from 'node:child_process';
 import { openSync, closeSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { migrateCommerce } from '../api/commerce/migrate.mjs';
 import { runtimeConfig } from './vps-config.mjs';
 
 export async function schemaGate(connection) {
@@ -52,6 +53,7 @@ async function main() {
     if (status !== 0 || statSync(`${backupDir}/database.sql`).size === 0) throw new Error('Database backup failed; inspect the private backup stderr file');
     writeFileSync(`${backupDir}/database-backup.ok`, new Date().toISOString(), { mode: 0o600 });
     await migrateAdditions(connection);
+    await migrateCommerce(connection);
     console.log('Database backup completed; additive migrations verified');
   } finally { await connection.end(); }
 }

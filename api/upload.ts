@@ -12,7 +12,7 @@ import { saveImage, resolveUploadPath } from "./lib/storage";
 import { env } from "./lib/env";
 
 /** Resolve the authenticated user from a request (local/social/phone session or Kimi). */
-async function getRequestUser(headers: Headers) {
+export async function getRequestUser(headers: Headers) {
   // Local / social / phone session cookie
   try {
     const cookies = cookie.parse(headers.get("cookie") || "");

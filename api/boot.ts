@@ -1,3 +1,5 @@
+import { registerSecurity } from './commerce/security';
+import { registerCommerceHttp } from './commerce/http';
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { compress } from "hono/compress";
@@ -19,7 +21,10 @@ import { handleUpload, handleServeUpload } from "./upload";
 
 const app = new Hono<{ Bindings: HttpBindings }>();
 
+registerSecurity(app);
 app.use(bodyLimit({ maxSize: 50 * 1024 * 1024 }));
+app.use("/api/trpc/*",bodyLimit({maxSize:1024*1024}));
+registerCommerceHttp(app);
 registerPaymentWebhooks(app);
 
 // Kimi OAuth (legacy)

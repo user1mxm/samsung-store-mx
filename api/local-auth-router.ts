@@ -18,7 +18,7 @@ function generateReferralCode(): string {
   return "SAM" + Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-async function issueSession(ctx: any, userId: number) {
+export async function issueSession(ctx: any, userId: number) {
   const token = await signSessionToken({ unionId: `local-${userId}`, clientId: env.appId });
   const cookieOpts = getSessionCookieOptions(ctx.req.headers);
   ctx.resHeaders.append("set-cookie", cookie.serialize(Session.cookieName, token, {

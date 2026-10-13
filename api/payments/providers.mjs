@@ -49,7 +49,7 @@ function originUrl(value) {
 }
 
 function validateSnapshot(snapshot) {
-  if (!/^[a-z0-9_-]{1,64}$/i.test(snapshot.reference ?? '') || !Array.isArray(snapshot.items) || !snapshot.items.length || snapshot.items.length > 50) throw new Error('Invalid server order snapshot');
+  if (!/^[a-z0-9_-]{1,64}$/i.test(snapshot.reference ?? '') || !Array.isArray(snapshot.items) || !snapshot.items.length || snapshot.items.length > 51) throw new Error('Invalid server order snapshot');
   let total = 0;
   for (const line of snapshot.items) {
     if (!Number.isSafeInteger(line.quantity) || line.quantity < 1 || line.quantity > 999 || !line.name) throw new Error('Invalid order line');
