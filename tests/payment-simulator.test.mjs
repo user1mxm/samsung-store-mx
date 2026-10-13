@@ -35,5 +35,8 @@ test('MXN totals use integer centavos and reject imprecise or excessive values',
 test('simulator does not import gateway, network, payment ledger, or webhook modules', async () => {
   const { readFile } = await import('node:fs/promises');
   const source = await readFile(new URL('../src/lib/payment-simulator.mjs', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /\b(fetch|XMLHttpRequest|paymentAttempts|settleCheckout|createStripeCheckout|createMercadoPagoCheckout)\b/);
+  assert.doesNotMatch(source, /^\s*(import|export)\b[^;]*\bfrom\b|^\s*import\s*['"]/m);
+  assert.doesNotMatch(source, /\bimport\s*\(|\brequire\s*\(|\bimport\.meta\b/);
+  assert.doesNotMatch(source, /\b(fetch|XMLHttpRequest|WebSocket|EventSource|sendBeacon|axios|ky|Worker|SharedWorker|navigator|globalThis|window|self)\b/);
+  assert.doesNotMatch(source, /\b(paymentAttempts|settleCheckout|createStripeCheckout|createMercadoPagoCheckout|webhook)\b/i);
 });
