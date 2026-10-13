@@ -21,7 +21,7 @@ export default function App() {
   const { user, isLoading } = useAuth()
 
   const accountLoading = <div role="status" className="min-h-[50vh] flex items-center justify-center">Cargando tu cuenta…</div>
-  if (isLoading && window.location.pathname !== '/') {
+  if (isLoading && window.location.pathname !== '/' && window.location.pathname !== '/demo/pagos') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1428A0]" />
