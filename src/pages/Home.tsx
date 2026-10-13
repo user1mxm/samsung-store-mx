@@ -1,11 +1,12 @@
 // @ts-nocheck
+import { searchCatalog } from '@/lib/catalog-search.mjs'
 /* ═══════════════════════════════════════════════════════════
    Samsung Store MX — Home Page
    Estructura limpia, balanceada, sin errores de JSX
    ═══════════════════════════════════════════════════════════ */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Toaster, toast } from 'sonner'
+import { toast } from 'sonner'
 import Marquee from 'react-fast-marquee'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -17,6 +18,7 @@ import { Separator } from '@/components/ui/separator'
 import { trpc } from '@/providers/trpc'
 import { useAuth } from '@/hooks/useAuth'
 import { preferredViewerProduct } from '@/lib/tv-model.mjs'
+import SwipeCatalogSection from '@/components/catalog/ModelSwipeCatalog'
 import { TV3DViewer } from '@/components/home/TV3DViewer'
 import { stockLimit, clampQuantity, restoreCart, reconcileCart, catalogPriceCeiling } from '@/lib/cart-safety.mjs'
 import { useNavigate } from 'react-router'
@@ -66,117 +68,6 @@ const SPRING_GENTLE = { type: 'spring' as const, stiffness: 300, damping: 30 }
 /* ═══════════════════════════════════════════════════════════
    SWIPE CATALOG COMPONENT (inline para evitar imports rotos)
    ═══════════════════════════════════════════════════════════ */
-function SwipeCatalogSection({
-  products, loading, darkMode, wishlist, compareList,
-  onToggleWishlist, onToggleCompare, onAddToCart,
-  onViewProduct, onZoom, onSpecSheet, onQuickView,
-}: {
-  products: any[]; loading: boolean; darkMode: boolean
-  wishlist: number[]; compareList: number[]
-  onToggleWishlist: (id: number) => void
-  onToggleCompare: (id: number) => void
-  onAddToCart: (p: any) => void
-  onViewProduct: (p: any) => void
-  onZoom: (p: any) => void
-  onSpecSheet: (p: any) => void
-  onQuickView: (p: any) => void
-}) {
-  if (loading) {
-    return (
-      <div className="flex gap-4 overflow-hidden px-4">
-        {[1, 2, 3].map(i => (
-          <div key={i} className={`min-w-[85%] sm:min-w-[45%] lg:min-w-[31%] rounded-2xl h-[420px] ${darkMode ? 'bg-[#1a1a2a]' : 'bg-gray-100'} animate-pulse`} />
-        ))}
-      </div>
-    )
-  }
-
-  if (!products || products.length === 0) {
-    return (
-      <div className="text-center py-16">
-        <Search className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-        <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No se encontraron productos</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative">
-      <div className="catalog-grid">
-          {products.map((product: any) => (
-            <div key={product.id} className="catalog-item min-w-0">
-              <div className="h-full">
-                <motion.div whileHover={{ y: -8 }} transition={SPRING}
-                  className={`group cursor-pointer h-full flex flex-col overflow-hidden rounded-2xl border transition-all duration-300 ${
-                    darkMode ? 'bg-[#14141f] border-gray-800/60 hover:border-[#1428A0]/50 shadow-lg shadow-black/20' : 'bg-white border-gray-100 hover:shadow-2xl hover:shadow-blue-900/8'
-                  }`}
-                  onClick={() => onViewProduct(product)}>
-                  {/* Image */}
-                  <div className="relative aspect-[4/3] overflow-hidden">
-                    <ShimmerImage src={product.imageUrl} alt={product.name} className="aspect-[4/3]" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    {product.featured === 'yes' && (
-                      <div className="absolute top-3 left-3 bg-gradient-to-r from-[#1428A0] to-[#0077C8] text-white text-[9px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 shadow-lg">
-                        <Flame className="w-2.5 h-2.5" /> Destacado
-                      </div>
-                    )}
-                    <div className="absolute top-3 right-3 bg-black/50 backdrop-blur rounded-full px-2 py-0.5">
-                      <StockPulse stock={product.stock} featured={product.featured === 'yes'} />
-                    </div>
-                    {/* Hover actions */}
-                    <div className="card-quick-actions absolute top-3 right-3 mt-8 flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-3 group-hover:translate-x-0">
-                      <motion.button aria-label={`Favorito: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleWishlist(product.id) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <Heart className={`w-3.5 h-3.5 ${wishlist.includes(product.id) ? 'text-red-500 fill-red-500' : 'text-gray-600'}`} />
-                      </motion.button>
-                      <motion.button aria-label={`Comparar: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onToggleCompare(product.id) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <TrendingUp className={`w-3.5 h-3.5 ${compareList.includes(product.id) ? 'text-[#1428A0]' : 'text-gray-600'}`} />
-                      </motion.button>
-                      <motion.button aria-label={`Ampliar imagen: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onZoom(product) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <ZoomIn className="w-3.5 h-3.5 text-gray-600" />
-                      </motion.button>
-                      <motion.button aria-label={`Especificaciones: ${product.name}`} whileHover={{ scale: 1.15 }} whileTap={{ scale: 0.85 }} onClick={(e) => { e.stopPropagation(); onSpecSheet(product) }}
-                        className="w-8 h-8 bg-white/90 backdrop-blur rounded-full flex items-center justify-center hover:bg-white shadow-lg">
-                        <Box className="w-3.5 h-3.5 text-gray-600" />
-                      </motion.button>
-                    </div>
-                    <div className="card-quick-view absolute bottom-3 left-3 opacity-0 group-hover:opacity-100 transition-all duration-300">
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={(e) => { e.stopPropagation(); onQuickView(product) }}
-                        className="px-3 py-1.5 bg-white/90 backdrop-blur rounded-full text-[10px] font-bold text-[#1428A0] hover:bg-white shadow-lg flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Vista Rapida
-                      </motion.button>
-                    </div>
-                  </div>
-                  {/* Info */}
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[9px] font-bold uppercase tracking-wider text-[#1428A0] bg-[#1428A0]/8 px-2 py-0.5 rounded">{product.category}</span>
-                      <div className="flex items-center gap-0.5">
-                        <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-                        <span className={`text-[10px] font-medium ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.rating || '4.5'}</span>
-                      </div>
-                    </div>
-                    <h3 className={`font-bold text-sm mb-0.5 leading-tight tracking-tight ${darkMode ? 'text-white' : 'text-gray-900'}`}><button className="text-left" onClick={e => { e.stopPropagation(); onViewProduct(product) }}>{product.name}</button></h3>
-                    <p className={`text-[11px] mb-2 ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>{product.model}</p>
-                    <p className={`text-xs mb-3 flex-1 line-clamp-2 leading-relaxed ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{product.description}</p>
-                    <p className="text-xl font-black text-[#1428A0] mb-3 tracking-tight">${Number(product.price).toLocaleString()}<span className="text-[10px] font-normal text-gray-400 ml-1">MXN</span></p>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.95 }}>
-                      <Button className="w-full h-10 samsung-btn-primary text-[11px] font-bold rounded-xl" onClick={(e) => { e.stopPropagation(); onAddToCart(product) }} disabled={product.stock === 0}>
-                        {product.stock === 0 ? 'Agotado' : <><ShoppingCart className="w-3.5 h-3.5 mr-1.5" /> Agregar al Carrito</>}
-                      </Button>
-                    </motion.div>
-                  </div>
-                </motion.div>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  )
-}
-
 /* ═══════════════════════════════════════════════════════════
    MAIN HOME COMPONENT
    ═══════════════════════════════════════════════════════════ */
@@ -248,12 +139,18 @@ export default function Home() {
   })
   const { data: paymentProviders = [] } = trpc.order.paymentProviders.useQuery()
   const checkoutMutation = trpc.order.checkout.useMutation()
+  const quoteMutation=trpc.commerce.quoteCreate.useMutation()
+  const [quoteUrl,setQuoteUrl]=useState('')
+  const [serviceDate,setServiceDate]=useState(''),[installation,setInstallation]=useState(false)
+  const {data:delivery}=trpc.commerce.service.useQuery({postalCode:shipping.postalCode},{enabled:/^\d{5}$/.test(shipping.postalCode)&&checkoutOpen,retry:false})
+  const selectedDelivery=delivery&&serviceDate?{zoneId:delivery.id,date:serviceDate,installation}:undefined
+  useEffect(()=>{setServiceDate('')},[shipping.postalCode])
   const { data: paymentState, refetch: refreshPayment } = trpc.order.checkoutStatus.useQuery(
     { reference: checkoutReference },
     { enabled: isAuthenticated && paymentProviders.length > 0, retry: false, refetchInterval: checkoutOpen ? 5000 : false },
   )
   useEffect(() => {
-    if (paymentState?.state === 'paid') {
+    if (['paid','cancelled'].includes(paymentState?.state)) {
       try { localStorage.removeItem(`checkout-request-${user?.id}`) } catch { /* Storage may be unavailable. */ }
     }
   }, [paymentState?.state, user?.id])
@@ -264,7 +161,7 @@ export default function Home() {
     if (!cart.length || checkoutMutation.isPending) return
     const provider = paymentProviders.includes(paymentProvider) ? paymentProvider : paymentProviders[0]
     if (!provider) return
-    const payload = { provider, shippingAddress: shipping, items: cart.map(item => ({ productId: item.product.id, quantity: item.quantity })).sort((a, b) => a.productId - b.productId) }
+    const payload = { provider, service:selectedDelivery, shippingAddress: shipping, items: cart.map(item => ({ productId: item.product.id, quantity: item.quantity })).sort((a, b) => a.productId - b.productId) }
     try {
       const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify(payload)))
       const hash = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
@@ -393,7 +290,9 @@ export default function Home() {
     })
   }, [])
 
-  const heroProduct = preferredViewerProduct(products || [])
+  const {data:profiles=[]}=trpc.commerce.profiles.useQuery(undefined,{retry:false});
+  const enrichedProducts=useMemo(()=>(products||[]).map(p=>({...p,unitProfile:profiles.find(x=>x.productId===p.id && x.model===p.model)})),[products,profiles]);
+  const heroProduct = preferredViewerProduct(enrichedProducts)
 
   /* Derived values */
   const cartTotal = cart.reduce((sum, i) => sum + Number(i.product.price) * i.quantity, 0)
@@ -401,10 +300,8 @@ export default function Home() {
 
   /* Filtered products */
   const filtered = useMemo(() => {
-    let list = (products || []).filter((p: any) => {
-      const query = voiceSearchResult || searchQuery
+    let list = searchCatalog(enrichedProducts,voiceSearchResult || searchQuery).filter((p: any) => {
       if (selectedCategory !== 'all' && p.category !== selectedCategory) return false
-      if (query && !`${p.name} ${p.model || ''}`.toLowerCase().includes(query.toLowerCase().trim())) return false
       const price = Number(p.price)
       if (maxPrice !== null && price > maxPrice) return false
       return true
@@ -416,9 +313,9 @@ export default function Home() {
       default: break
     }
     return list
-  }, [products, selectedCategory, searchQuery, voiceSearchResult, maxPrice, sortBy])
+  }, [enrichedProducts, selectedCategory, searchQuery, voiceSearchResult, maxPrice, sortBy])
 
-  const compareProducts = useMemo(() => (products || []).filter((p: any) => compareList.includes(p.id)), [products, compareList])
+  const compareProducts = useMemo(() => enrichedProducts.filter((p: any) => compareList.includes(p.id)), [enrichedProducts, compareList])
 
   /* Helpers */
   const scrollTo = (id: string) => {
@@ -435,16 +332,15 @@ export default function Home() {
      ═══════════════════════════════════════════════════════════ */
   return (
     <div className={`storefront min-h-screen overflow-x-hidden transition-colors duration-500 ${themeClasses} ${darkMode ? 'dark' : ''}`}>
-      <Toaster position="top-center" richColors closeButton />
 
       <ScrollProgress />
 
       {/* ═══ PROMO TICKER ═══ */}
       <div className="bg-[#1428A0] text-white">
         <Marquee speed={40} gradient={false} className="py-1.5">
-          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><Truck className="w-3 h-3" /> Envio gratis +$5,000 MXN</span>
-          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><CreditCard className="w-3 h-3" /> 12 MSI</span>
-          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><BadgeCheck className="w-3 h-3" /> Garantia 5 anos Samsung</span>
+          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><Truck className="w-3 h-3" /> Consulta cobertura de entrega</span>
+          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><CreditCard className="w-3 h-3" /> Pagos seguros al habilitar checkout</span>
+          <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><BadgeCheck className="w-3 h-3" /> Consulta garantía por unidad</span>
           <span className="mx-6 text-[11px] font-medium flex items-center gap-2"><Flame className="w-3 h-3 text-orange-400" /> Ofertas Flash <CountdownTimer /></span>
         </Marquee>
       </div>
@@ -532,9 +428,9 @@ export default function Home() {
                       className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
                       Mis Pedidos
                     </button>
-                    <button onClick={() => { navigate('/mi-red'); setMobileMenuOpen(false) }}
+                    <button onClick={() => { navigate(user?.role === 'admin' ? '/admin' : user?.role === 'agent' ? '/agent' : '/mi-red'); setMobileMenuOpen(false) }}
                       className={`block w-full text-left px-3 py-2.5 text-sm font-medium rounded-lg ${darkMode ? 'text-gray-400 hover:bg-white/5' : 'text-gray-600 hover:bg-gray-50'}`}>
-                      Mi Red
+                      {user?.role === 'admin' ? 'Panel Admin' : user?.role === 'agent' ? 'Portal Agente' : 'Mi Red'}
                     </button>
                   </>
                 ) : (
@@ -560,7 +456,7 @@ export default function Home() {
           </div>
           <div className="premium-hero-model"><TV3DViewer product={heroProduct} /></div>
         </div>
-        <div className="premium-tools-strip"><span>Visualiza antes de elegir</span><ARPhotoPreview productImage={heroProduct?.imageUrl || '/tv-s95d-real.jpg'} productName={heroProduct?.name || 'Samsung'} darkMode={darkMode} /><ProductSizeConfigurator /></div>
+        <div className="premium-tools-strip"><button onClick={()=>navigate('/mi-cuenta')}>Mi cuenta y posventa ↗</button><span>Visualiza antes de elegir</span><ARPhotoPreview productImage={heroProduct?.imageUrl || '/tv-s95d-real.jpg'} productName={heroProduct?.name || 'Samsung'} darkMode={darkMode} /><ProductSizeConfigurator /></div>
       </section>
 
       {/* ═══ CATALOG ═══ */}
@@ -577,7 +473,7 @@ export default function Home() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-6" ref={searchRef}>
             <div className="relative flex-1 max-w-md mx-auto w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input aria-label="Buscar productos" placeholder="Busca por nombre o modelo..." value={searchQuery}
+              <Input aria-label="Buscar productos" placeholder="Ej. 75 pulgadas hasta 20 mil disponibles" value={searchQuery}
                 onChange={(e) => { setSearchQuery(e.target.value); setShowSuggestions(true); setVoiceSearchResult('') }}
                 onFocus={() => setShowSuggestions(true)}
                 className={`pl-11 pr-10 h-11 rounded-full text-sm ${darkMode ? 'bg-[#1a1a2a] border-gray-700 text-white' : ''}`} />
@@ -813,7 +709,7 @@ export default function Home() {
             <div>
               <h4 className="text-xs font-bold uppercase tracking-wider mb-3 text-gray-300">Acceso Administrativo</h4>
               <ul className="space-y-2">
-                <li><button onClick={() => navigate('/login')} className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1"><Shield className="w-3 h-3 text-[#00BFFF]" /> Panel Admin</button></li>
+                <li><button onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/login/admin')} className="text-xs text-gray-500 hover:text-white transition-colors flex items-center gap-1"><Shield className="w-3 h-3 text-[#00BFFF]" /> Panel Admin</button></li>
                 <li><span className="text-[9px] text-gray-600">Acceso exclusivo para administradores</span></li>
               </ul>
             </div>
@@ -908,7 +804,9 @@ export default function Home() {
                 ))}
                 <Separator />
                 <div className="flex justify-between items-center py-2"><span className="font-bold text-sm">Subtotal:</span><span className="font-black text-xl text-[#1428A0]">${cartTotal.toLocaleString()} MXN</span></div>
-                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2"><Truck className="w-3 h-3" />{cartTotal >= 5000 ? 'Envio gratis!' : `Te faltan $${(5000 - cartTotal).toLocaleString()}`}</div>
+                <p className="text-xs text-gray-500 mb-2">Consulta entrega e instalación por código postal al finalizar.</p>
+                <Button variant="outline" className="w-full mb-2" disabled={quoteMutation.isPending} onClick={async()=>{if(!isAuthenticated){navigate('/login');return}try{const q=await quoteMutation.mutateAsync({items:cart.map(i=>({productId:i.product.id,quantity:i.quantity}))});setQuoteUrl(`${location.origin}/cotizacion/${q.token}`);toast.success('Cotización creada por 48 horas');}catch(e){toast.error(e.message)}}}>Crear cotización compartible</Button>
+                {quoteUrl&&<p className="text-xs break-all"><a href={quoteUrl}>Abrir cotización</a> <button onClick={()=>navigator.clipboard.writeText(quoteUrl).then(()=>toast.success('Enlace copiado'))}>Copiar enlace</button></p>}
                 <Button className="w-full h-12 samsung-btn-primary text-sm" onClick={() => { setCartOpen(false); setCheckoutOpen(true) }}>Ver resumen <ArrowRight className="w-4 h-4 ml-2" /></Button>
               </>
             )}
@@ -1020,15 +918,15 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody>
-                  {['Categoria', 'Precio', 'Stock', 'Calificacion', 'Modelo'].map(attr => (
+                  {['Categoria', 'Precio', 'Stock', 'Calificacion', 'Modelo',...Array.from(new Set(compareProducts.flatMap(p=>Object.keys(typeof p.specs==='string'?JSON.parse(p.specs||'{}'):p.specs||{}))))].map(attr => (
                     <tr key={attr} className={`border-b ${darkMode ? 'border-gray-800' : 'border-gray-100'}`}>
                       <td className={`p-2 font-medium sticky left-0 bg-white dark:bg-[#0a0a0f] ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>{attr}</td>
                       {compareProducts.map((p: any) => (
                         <td key={p.id} className="p-2 text-center">
                           {attr === 'Precio' ? `$${Number(p.price).toLocaleString()}` :
                            attr === 'Stock' ? `${p.stock} uds` :
-                           attr === 'Calificacion' ? `${p.rating || '4.5'}/5` :
-                           attr === 'Modelo' ? p.model : p.category}
+                           attr === 'Calificacion' ? (p.rating ? `${p.rating}/5` : 'Sin dato') :
+                           attr === 'Modelo' ? p.model : attr === 'Categoria' ? p.category : (typeof p.specs==='string'?JSON.parse(p.specs||'{}'):p.specs||{})[attr] || 'Sin dato'}
                         </td>
                       ))}
                     </tr>
@@ -1050,7 +948,7 @@ export default function Home() {
               <div><p className="font-bold text-sm">{aiProduct?.name}</p><p className="text-xs text-gray-500">{aiProduct?.model}</p></div>
             </div>
             <div className="space-y-2">
-              {[{ label: 'Calidad Imagen', val: '98%' }, { label: 'Precio/Valor', val: '94%' }, { label: 'Durabilidad', val: '10+ anos' }, { label: 'Satisfaccion', val: '4.9/5' }, { label: 'Eco Eficiencia', val: '42% mejor' }].map(m => (
+              {[{label:'Modelo',val:aiProduct?.model||'Sin dato'},{label:'Precio MXN',val:aiProduct?.price||'Sin dato'},{label:'Existencias',val:String(aiProduct?.stock??0)}].map(m => (
                 <div key={m.label} className="flex justify-between p-2.5 bg-gray-50 rounded-lg">
                   <span className="text-xs text-gray-600">{m.label}</span>
                   <span className="text-xs font-bold text-[#1428A0]">{m.val}</span>
@@ -1084,12 +982,12 @@ export default function Home() {
               <div className="space-y-3">
                 <p role="status" className="text-sm">{paymentState.state === 'paid'
                   ? `Pago verificado. Pedido #${paymentState.orderId}.`
-                  : paymentState.state === 'pending'
+                  : paymentState.state === 'cancelled' ? `Pedido #${paymentState.orderId}: checkout cancelado sin pago.` : paymentState.state === 'pending'
                     ? `Pedido #${paymentState.orderId}: pago pendiente de confirmación.`
                     : `Pedido #${paymentState.orderId}: el intento de pago requiere revisión. No inicies otro pago.`}</p>
                 {paymentState.state === 'pending' && paymentState.url && <Button className="w-full" onClick={() => window.location.assign(paymentState.url)}>Retomar pago</Button>}
                 <Button variant="outline" onClick={() => void refreshPayment()}>Actualizar estado</Button>
-                {paymentState.state === 'paid' && <Button variant="outline" onClick={() => {
+                {['paid','cancelled'].includes(paymentState.state) && <Button variant="outline" onClick={() => {
                   setCheckoutReference(undefined)
                   try { localStorage.removeItem('checkout-reference') } catch { /* Storage may be unavailable. */ }
                 }}>Preparar otra compra</Button>}
@@ -1111,13 +1009,14 @@ export default function Home() {
                         onChange={event => setShipping(previous => ({ ...previous, [key]: event.target.value }))} />
                     </label>
                   ))}
+                  {/^\d{5}$/.test(shipping.postalCode)&&<div className="rounded-xl bg-gray-50 p-3 text-xs">{delivery?<><p>{delivery.label} · Entrega ${Number(delivery.deliveryCents)/100} MXN</p><label><input type="checkbox" checked={installation} onChange={e=>setInstallation(e.target.checked)}/> Instalación +${Number(delivery.installationCents)/100} MXN</label><select required value={serviceDate} onChange={e=>setServiceDate(e.target.value)}><option value="">Selecciona fecha disponible</option>{delivery.dates.filter(d=>d.available>0).map(d=><option key={d.date} value={d.date}>{d.date} · {d.available} cupos</option>)}</select>{serviceDate&&<p>Total con servicio: ${(cartTotal+(Number(delivery.deliveryCents)+(installation?Number(delivery.installationCents):0))/100).toLocaleString('es-MX')} MXN</p>}</>:<p>Sin cobertura de entrega publicada para este código postal. Solicita una cotización antes de pagar.</p>}</div>}
                   <label className="block text-xs">Proveedor de pago
                     <select className="w-full border rounded-md p-2" value={paymentProviders.includes(paymentProvider) ? paymentProvider : paymentProviders[0]} onChange={event => setPaymentProvider(event.target.value)}>
                       {paymentProviders.map(provider => <option key={provider} value={provider}>{provider === 'stripe' ? 'Stripe' : 'Mercado Pago'}</option>)}
                     </select>
                   </label>
                   <p className="text-xs text-gray-500">El precio final se valida al iniciar el pago. Completarás el pago en el sitio del proveedor.</p>
-                  <Button type="submit" className="w-full" disabled={!cart.length}>{checkoutMutation.isPending ? 'Preparando pago…' : 'Continuar al pago seguro'}</Button>
+                  <Button type="submit" className="w-full" disabled={!cart.length || !delivery || !serviceDate}>{checkoutMutation.isPending ? 'Preparando pago…' : 'Continuar al pago seguro'}</Button>
                 </fieldset>
               </form>
             )}

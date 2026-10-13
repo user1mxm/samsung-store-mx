@@ -14,22 +14,40 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
+  const [error, setError] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const utils = trpc.useUtils();
+  const keyOptions=trpc.passkey.loginOptions.useMutation();
+  const keyLogin=trpc.passkey.login.useMutation();
+  async function loginWithKey(){setError('');setVerifying(true);try{
+    const start=await keyOptions.mutateAsync({email:email.trim().toLowerCase()});
+    const {startAuthentication}=await import('@simplewebauthn/browser');
+    const response=await startAuthentication({optionsJSON:start.options});
+    await keyLogin.mutateAsync({id:start.id,response});
+    await utils.localAuth.me.invalidate();const me=await utils.localAuth.me.fetch();if(me?.role!=='admin')throw new Error('No se conservó la sesión');navigate('/admin',{replace:true});
+  }catch(e){setError(e.message||'No se pudo verificar la llave');}finally{setVerifying(false);}}
 
   const loginMutation = trpc.localAuth.login.useMutation({
-    onSuccess: (data) => {
-      if (data.user?.role !== "admin") {
-        toast.error("Acceso denegado: solo administradores");
-        return;
-      }
-      toast.success(`Bienvenido, ${data.user.name}`);
-      window.location.href = "/admin";
+    onSuccess: async (data) => {
+      setVerifying(true);
+      try {
+        if (data.user?.role !== "admin") throw new Error("Esta cuenta no tiene acceso administrativo");
+        await utils.localAuth.me.invalidate();
+        const identity = await utils.localAuth.me.fetch();
+        if (identity?.role !== "admin") throw new Error("No se conservó la sesión. Permite cookies para este sitio e intenta de nuevo.");
+        toast.success(`Bienvenido, ${identity.name}`);
+        navigate("/admin", { replace: true });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "No se pudo comprobar la sesión");
+      } finally { setVerifying(false); }
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => setError(err.message || "No se pudo conectar. Intenta de nuevo."),
   });
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    loginMutation.mutate({ email, password, isAdmin: true });
+    setError("");
+    loginMutation.mutate({ email: email.trim().toLowerCase(), password, isAdmin: true });
   };
 
   return (
@@ -63,9 +81,12 @@ export default function AdminLogin() {
 
           <CardContent className="space-y-4 pt-2">
             <form onSubmit={handleLogin} className="space-y-3">
+              {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
               <div className="relative">
                 <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
+                  aria-label="Correo administrador"
+                  autoComplete="username"
                   placeholder="Correo administrador"
                   type="email"
                   value={email}
@@ -77,6 +98,8 @@ export default function AdminLogin() {
               <div className="relative">
                 <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
+                  aria-label="Contraseña"
+                  autoComplete="current-password"
                   placeholder="Contraseña"
                   type={showPass ? "text" : "password"}
                   value={password}
@@ -86,6 +109,7 @@ export default function AdminLogin() {
                 />
                 <button
                   type="button"
+                  aria-label={showPass ? "Ocultar contraseña" : "Mostrar contraseña"}
                   onClick={() => setShowPass(!showPass)}
                   className="absolute right-3 top-3 text-gray-400 hover:text-gray-600"
                 >
@@ -95,12 +119,13 @@ export default function AdminLogin() {
               <Button
                 type="submit"
                 className="w-full h-11 rounded-xl font-bold bg-[#1428A0] hover:bg-[#0f1f80] text-white"
-                disabled={loginMutation.isPending}
+                disabled={loginMutation.isPending || verifying}
               >
-                {loginMutation.isPending ? "Verificando..." : "Ingresar al panel"}
+                {loginMutation.isPending || verifying ? "Verificando..." : "Ingresar al panel"}
               </Button>
             </form>
 
+            <Button variant="outline" className="w-full" disabled={verifying||!email.trim()} onClick={loginWithKey}>Ingresar con llave de acceso</Button>
             <p className="text-center text-[10px] text-gray-400 pt-1">
               Esta página es de uso exclusivo para administradores.{" "}
               <button

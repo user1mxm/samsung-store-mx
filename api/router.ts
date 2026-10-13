@@ -1,3 +1,5 @@
+import { commerceRouter } from './commerce/router';
+import { passkeyRouter } from './commerce/passkeys';
 import { authRouter } from "./auth-router";
 import { localAuthRouter } from "./local-auth-router";
 import { productRouter } from "./product-router";
@@ -11,6 +13,8 @@ import { userRouter } from "./user-router";
 import { createRouter, publicQuery } from "./middleware";
 
 export const appRouter = createRouter({
+  commerce: commerceRouter,
+  passkey: passkeyRouter,
   ping: publicQuery.query(() => ({ ok: true, ts: Date.now() })),
   auth: authRouter,
   localAuth: localAuthRouter,

@@ -27,7 +27,9 @@ export async function insertReservedOrder(connection, userId, input) {
     const product = rows[0];
     if (!product) throw new OrderError('NOT_FOUND', 'Product no longer available');
     if (product.stock < item.quantity) throw new OrderError('CONFLICT', 'Insufficient stock');
-    const unitCents = toCents(product.price);
+    const quotedLine=input.quoted?.items?.find(line=>line.productId===item.productId);
+    if(input.quoted && (!quotedLine || quotedLine.quantity!==item.quantity)) throw new OrderError('CONFLICT','Invalid quote snapshot');
+    const unitCents = toCents(quotedLine?.price ?? product.price);
     totalCents += unitCents * item.quantity;
     if (totalCents > 9999999999) throw new OrderError('BAD_REQUEST', 'Order total exceeds supported amount');
     lines.push({ ...item, name: product.name, price: fromCents(unitCents) });

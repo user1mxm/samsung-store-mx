@@ -1,3 +1,4 @@
+import { calibratedScreenWidth,screenDimensions } from '@/lib/room-scale.mjs'
 /* ═══════════════════════════════════════════════════════════
    AR Photo Preview — Extraordinary Upgrade #1
    Take a photo of your wall/space and see how the TV looks
@@ -45,6 +46,10 @@ export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [tvSize, setTvSize] = useState(TV_SIZES[1])
   const [tvPosition, setTvPosition] = useState({ x: 50, y: 50 })
+  const [referenceCm,setReferenceCm]=useState(300)
+  const [referenceFraction,setReferenceFraction]=useState(.8)
+  const [distanceCm,setDistanceCm]=useState(250)
+  const [calibrated,setCalibrated]=useState(false)
   const [tvScale, setTvScale] = useState(1)
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -71,6 +76,8 @@ export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName
       setHasPermission(false)
     }
   }, [facingMode])
+
+  useEffect(()=>{if(hasPermission&&videoRef.current&&streamRef.current){videoRef.current.srcObject=streamRef.current;void videoRef.current.play().catch(()=>{});}},[hasPermission,capturedImage])
 
   /* Stop camera */
   const stopCamera = useCallback(() => {
@@ -139,7 +146,7 @@ export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName
       ctx.drawImage(img, 0, 0)
 
       // Draw TV overlay
-      const baseW = img.width * 0.4 * tvSize.scale * tvScale
+      const baseW = calibrated ? calibratedScreenWidth(img.width,referenceFraction,referenceCm,tvSize.diagonal) : img.width * 0.4 * tvSize.scale * tvScale
       const baseH = baseW * 0.563
       const centerX = (tvPosition.x / 100) * img.width
       const centerY = (tvPosition.y / 100) * img.height
@@ -185,8 +192,9 @@ export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName
         ctx.textAlign = 'center'
         ctx.fillText('SAMSUNG', centerX, y + baseH + bezel * 4)
       }
-      tvImg.src = productImage
+      tvImg.src = '/viewer/alpine-screen-v1-960.webp'
 
+      if(calibrated){ctx.strokeStyle='#00bfff';ctx.lineWidth=3;ctx.beginPath();const rw=img.width*referenceFraction;ctx.moveTo((img.width-rw)/2,img.height*.85);ctx.lineTo((img.width+rw)/2,img.height*.85);ctx.stroke();ctx.fillStyle='#00bfff';ctx.font='24px sans-serif';ctx.textAlign='center';ctx.fillText(`${referenceCm} cm · referencia en el plano de la pared`,img.width/2,img.height*.85-14);}
       // Size indicator ring
       ctx.strokeStyle = 'rgba(20, 40, 160, 0.6)'
       ctx.lineWidth = 2
@@ -197,7 +205,7 @@ export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName
       ctx.setLineDash([])
     }
     img.src = capturedImage
-  }, [capturedImage, tvPosition, tvScale, tvSize, productImage])
+  }, [capturedImage, tvPosition, tvScale, tvSize, productImage,calibrated,referenceFraction,referenceCm])
 
   /* Drag handlers */
   const handleDragStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -377,6 +385,11 @@ export function ARPhotoPreview({ productImage = '/tv-s95d-real.jpg', productName
               )}
             </div>
 
+            <div className="bg-[#101827] text-white px-4 py-3 text-xs flex flex-wrap gap-3 items-center">
+              <label>Foto local <input type="file" accept="image/jpeg,image/png,image/webp" onChange={e=>{const f=e.target.files?.[0];if(!f||f.size>10*1024*1024)return;const r=new FileReader();r.onload=()=>{stopCamera();setCapturedImage(String(r.result));};r.readAsDataURL(f);}}/></label>
+              {capturedImage&&<><label><input type="checkbox" checked={calibrated} onChange={e=>setCalibrated(e.target.checked)}/> Calibrar con referencia azul</label><label>Ancho real (cm) <input className="text-black w-16 rounded p-1" type="number" min="20" max="1000" value={referenceCm} onChange={e=>setReferenceCm(Math.max(20,Math.min(1000,Number(e.target.value))))}/></label><label>Largo de la línea <input type="range" min=".1" max="1" step=".01" value={referenceFraction} onChange={e=>setReferenceFraction(Number(e.target.value))}/></label><label>Distancia de visión (cm) <input className="text-black w-16 rounded p-1" type="number" min="50" max="1000" value={distanceCm} onChange={e=>setDistanceCm(Number(e.target.value))}/></label><span>Pantalla {Math.round(screenDimensions(tvSize.diagonal).widthCm)} × {Math.round(screenDimensions(tvSize.diagonal).heightCm)} cm · ángulo aprox. {Math.round(2*Math.atan(screenDimensions(tvSize.diagonal).widthCm/(2*Math.max(50,distanceCm)))*180/Math.PI)}°</span></>}
+              <p>Simulación ilustrativa 16:9; alinea la referencia con un ancho medido en el mismo plano. La perspectiva de la foto afecta la precisión. La foto permanece en tu dispositivo.</p>
+            </div>
             {/* Bottom Controls */}
             <div className="px-4 py-4 border-t border-white/10 bg-black/80 backdrop-blur">
               {!capturedImage ? (

@@ -1,0 +1,9 @@
+# Admin access and model swipe release
+
+Baseline: deployed PR18 cd73dca2049773626edfacf1a3f06cc43a799fd9. Production installation remains a separate VPS step.
+
+The footer administrator link now opens /login/admin (or /admin for an authenticated administrator). /webmaster resolves through the same protected route and /admin/login redirects to the administrative form. Errors are visible inline, notification delivery is global, requests time out rather than remaining pending indefinitely, and navigation occurs only after a fresh cookie-backed identity check. The server validates isAdmin requests before issuing a session; client accounts cannot acquire administrative privileges through a client flag. Email whitespace/case is normalized. No production credentials, password resets, seeds or account role changes are performed.
+
+The catalog presents one model per horizontal swipe with native scroll snapping, keyboard arrows, previous/next controls and a model selection menu. Image, details and television-only 360 degree tabs are integrated into the card. Offscreen models are inert and hidden from assistive navigation; adjacent images load progressively. Existing stock, price, cart, comparison, favorites, specification and product dialogs are preserved.
+
+Validation includes TypeScript, build, unit/route/model/recovery tests, HTTP smoke, compiled browser checks at 320/390/1440px and an isolated MySQL admin integration. The MySQL/browser fixture exercises real scrypt and legacy password login, cookie identity round-trip, role refusal, protected user API, visible invalid-login errors, dashboard navigation and reload. Only the dedicated samsung_store_test schema is permitted. Unrelated dashboard inventory queries are fixture responses in that browser test. Production administrator account validity and end-to-end dashboard edits require validation after deployment with the owner's account.
