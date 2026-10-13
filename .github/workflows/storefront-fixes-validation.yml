@@ -25,7 +25,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs
+      - run: node --test tests/cart-safety.test.mjs tests/payment-contracts.test.mjs tests/reconciliation.test.mjs tests/payment-simulator.test.mjs
       - run: npm ci --no-audit --no-fund
       - run: node --test tests/route-contracts.test.mjs
       - run: node --test tests/deploy-recovery.test.mjs

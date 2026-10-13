@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router'
+import { Routes, Route, Navigate, useLocation } from 'react-router'
 import { useAuth } from './hooks/useAuth'
 import Home from './pages/Home'
 const AdvisorQuotes=lazy(()=>import('./pages/AdvisorQuotes'))
@@ -14,9 +14,10 @@ const AdminCatalog = lazy(() => import('./pages/AdminCatalog'))
 const AgentDashboard = lazy(() => import('./pages/AgentDashboard'))
 const NetworkPage = lazy(() => import('./pages/NetworkPage'))
 const OrderHistory = lazy(() => import('./pages/OrderHistory'))
+const PaymentDemo = lazy(() => import('./pages/PaymentDemo'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
-export default function App() {
+function StoreApp() {
   const { user, isLoading } = useAuth()
 
   const accountLoading = <div role="status" className="min-h-[50vh] flex items-center justify-center">Cargando tu cuenta…</div>
@@ -58,4 +59,13 @@ export default function App() {
       <Route path="*" element={<NotFound />} />
     </Routes></Suspense>
   )
+}
+
+// The opt-in demo is a separate route tree: it never mounts useAuth or its remote query.
+export default function App() {
+  const { pathname } = useLocation()
+  if (import.meta.env.VITE_PAYMENT_SIMULATOR === '1' && pathname === '/demo/pagos') {
+    return <Suspense fallback={<div role="status">Cargando simulador…</div>}><PaymentDemo /></Suspense>
+  }
+  return <StoreApp />
 }
